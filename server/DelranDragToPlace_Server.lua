@@ -8,8 +8,31 @@ if not ORIGINAL_ISObjectClickHandler_doRClick then
     ORIGINAL_ISObjectClickHandler_doRClick = ISObjectClickHandler.doRClick;
 end
 ISObjectClickHandler.doRClick = function(object, x, y)
-    dprint("BOOPED");
-    --ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
+    ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
+    if true then return end;
+    if instanceof(object, "IsoObject") then
+        --sq = object:getCurrentSquare();
+        dprint("BOOP")
+        ---@type IsoObject
+        local isoObject = object;
+        dprint(isoObject);
+        local square = isoObject:getSquare();
+        local objects = square:getWorldObjects();
+        for i = 0, objects:size() - 1, 1 do
+            ---@type IsoWorldInventoryObject
+            local worldObect = objects:get(i);
+            if instanceof(worldObect, "IsoWorldInventoryObject") then
+                dprint(worldObect:getSprite());
+                dprint(worldObect:getWorldPosX())
+                dprint(worldObect:getWorldPosY())
+                ---dprint(worldObect:getWorldPosZ())
+                dprint(screenToIsoX(getPlayer():getIndex(), x, y, getPlayer():getZ()));
+                dprint(screenToIsoY(getPlayer():getIndex(), x, y, getPlayer():getZ()));
+
+                dprint(IsoObjectPicker.Instance:Pick(x, y));
+            end
+        end
+    end
 end
 
 --[[
