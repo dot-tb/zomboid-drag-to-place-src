@@ -29,88 +29,120 @@ DelranDragToPlace.playerIndex = nil;
 ---@type ISInventoryPaneDraggedItems
 DelranDragToPlace.draggedItems = nil;
 ---@type ISInventoryPane
-DelranDragToPlace.dragOwner = nil;
+DelranDragToPlace.startedFrom = nil;
 ---@type ISPlace3DItemCursor
 DelranDragToPlace.placeItemCursor = nil;
 
 DelranDragToPlace.placingItem = false;
-DelranDragToPlace.hidden = false;
+DelranDragToPlace.hidden = true;
 
 DelranDragToPlace.lastUpdateInMs = 0;
 
 DelranDragToPlace.OnTick = function(tick)
-    if tick % DelranDragToPlace.WaitBeforeDragTimer.TIME_STEP == 0 then
-        DelranDragToPlace.WaitBeforeDragTimer:UpdateTimer();
+    if tick % DelranDragToPlace.WaitBeforeShowCursorTimer.TIME_STEP == 0 then
+        DelranDragToPlace.WaitBeforeShowCursorTimer:UpdateTimer();
     end
 end
 
----comment
 ---@param player IsoPlayer
 ---@param draggedItems ISInventoryPaneDraggedItems
----@param dragOwner ISInventoryPane
-function DelranDragToPlace:Start(player, draggedItems, dragOwner)
-    dprint("Creating 3d cursor");
+---@param startedFrom ISInventoryPane
+function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.placingItem = true;
-    self.dragging = true;
-    self.dragOwner = dragOwner;
+    self.startedFrom = startedFrom;
 
     self.player = player;
+    self.startDirection = self.player:getDirectionAngle();
+    dprint(player:getDirectionAngle());
     self.playerIndex = self.player:getIndex();
     self.draggedItems = draggedItems;
 
     self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems.items);
-    self:ShowCursor();
+    self.WaitBeforeShowCursorTimer:Start(self.startedFrom);
+
+    Events.OnPlayerMove.Add(self.OnPlayerMove);
 end
 
 function DelranDragToPlace:Finish()
-    dprint("Deleting 3d cursor")
-    self.hidden = false;
+    Events.OnPlayerMove.Remove(self.OnPlayerMove);
+    -- Clear the show cursor timer
+    self.WaitBeforeShowCursorTimer:Reset();
+
+    -- Destroy the 3D cursor
+    self.placeItemCursor = nil;
+
+    -- Reset everything to default values
+    self.hidden = true;
     self.placingItem = false;
 
     self.player = nil;
     self.playerIndex = nil;
     self.draggedItems = nil;
-    self.placeItemCursor = nil;
+end
+
+function DelranDragToPlace:StartShowCursorTimer()
+    -- Start the show cursor timer
+    self.WaitBeforeShowCursorTimer:Start(self.startedFrom);
 end
 
 function DelranDragToPlace:ShowCursor()
-    self.dragOwner.dragging = nil;
-    --self.dragOwner.draggedItems:reset();
+    -- Setting dragging from the ISInventoryPane to nil will
+    --  stop the renderering of the dragged items
+    self.startedFrom.dragging = nil;
     self.hidden = false;
-    dprint("Showing 3d cursor");
+
+    -- Setting drag back to the cursor so it will show on the world
     getCell():setDrag(self.placeItemCursor, self.playerIndex)
 end
 
 function DelranDragToPlace:HideCursor()
     self.hidden = true;
-    dprint("Hiding 3d cursor");
+    -- Set drag to nil, the 3d cursor will disapear but not be deleted
     getCell():setDrag(nil, self.playerIndex);
-    self.dragOwner.dragging = 1;
-    --self.dragOwner.draggedItems = self.draggedItems;
+
+    self.player:setDirectionAngle(self.startDirection);
+
+    -- Let the ISInventoryPane draw the dragged inventory item
+    self.startedFrom.dragging = 1;
 end
 
 function DelranDragToPlace:PlaceItem()
-    self.placingItem = false;
+    -- Get the dragged item from the ISInventoryPane
+    -- There should only be one as we don't start the drag if there is more than one dragged item
     local draggedItem = self.draggedItems.items[1];
     local worldItem = draggedItem:getWorldItem();
     if worldItem then
+        -- If the item is in the world, walk nest to it first
         luautils.walkAdj(self.player, worldItem:getSquare(), true);
     end
-    ISWorldObjectContextMenu.transferIfNeeded(self.player, draggedItem)
+    -- Transfer the item in the inventory if needed
+    ISWorldObjectContextMenu.transferIfNeeded(self.player, draggedItem);
+    -- Walk to the square where we want to drop the item
     if luautils.walkAdjAltTest(self.player, self.placeItemCursor.selectedSqDrop, self.placeItemCursor.itemSq, true) then
+        -- Unequip the item if it is equipped on the player
         if self.player:isEquipped(draggedItem) then
             ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
         end
+        -- Finaly, drop the item at the position and rotation of the cursor.
         ISTimedActionQueue.add(ISDropWorldItemAction:new(self.player, draggedItem,
             self.placeItemCursor.selectedSqDrop,
             self.placeItemCursor.render3DItemXOffset, self.placeItemCursor.render3DItemYOffset,
             self.placeItemCursor.render3DItemZOffset, self.placeItemCursor.render3DItemRot, false));
     end
+    -- Hide the 3D cursor
     getCell():setDrag(nil, self.playerIndex);
+    -- Clean and stop
     self:Finish();
 end
 
 function DelranDragToPlace:OnMouseMove(x, y, xMultiplied, yMultiplied)
+end
+
+---@param player IsoPlayer
+function DelranDragToPlace:OnPlayerMove(player)
+    if player == self.player then
+        --self.startDirection = player:getDirectionAngle();
+    end
 end
 
 -- Function overrides
@@ -127,16 +159,16 @@ if not ORIGINAL_ISInventoryPane_onMouseUp then
     ORIGINAL_ISInventoryPane_onMouseUp = ISInventoryPane.onMouseUp;
 end
 
-DelranDragToPlace.WaitBeforeDragTimer = {}
+DelranDragToPlace.WaitBeforeShowCursorTimer = {}
 ---@type ISInventoryPane
-DelranDragToPlace.WaitBeforeDragTimer.owner = nil;
+DelranDragToPlace.WaitBeforeShowCursorTimer.owner = nil;
 ---@type integer
-DelranDragToPlace.WaitBeforeDragTimer.ticksElapsed = 0;
-DelranDragToPlace.WaitBeforeDragTimer.TIME_STEP = 2;
-DelranDragToPlace.WaitBeforeDragTimer.TICKS_BEFORE_DRAGGING = 20;
+DelranDragToPlace.WaitBeforeShowCursorTimer.ticksElapsed = 0;
+DelranDragToPlace.WaitBeforeShowCursorTimer.TIME_STEP = 2;
+DelranDragToPlace.WaitBeforeShowCursorTimer.TICKS_BEFORE_DRAGGING = 20;
 
 ---@param owner ISInventoryPane
-function DelranDragToPlace.WaitBeforeDragTimer:Start(owner)
+function DelranDragToPlace.WaitBeforeShowCursorTimer:Start(owner)
     if self.owner == owner then return end;
     dprint("starting timer");
     self.owner = owner;
@@ -144,20 +176,20 @@ function DelranDragToPlace.WaitBeforeDragTimer:Start(owner)
     Events.OnTick.Add(DelranDragToPlace.OnTick);
 end
 
-function DelranDragToPlace.WaitBeforeDragTimer:Reset()
+function DelranDragToPlace.WaitBeforeShowCursorTimer:Reset()
     Events.OnTick.Remove(DelranDragToPlace.OnTick);
     self.ticksElapsed = 0;
     self.owner = nil;
     self.items = nil;
 end
 
-function DelranDragToPlace.WaitBeforeDragTimer:UpdateTimer()
+function DelranDragToPlace.WaitBeforeShowCursorTimer:UpdateTimer()
     if IsMouseOverUi() then
         self:Reset();
     else
         self.ticksElapsed = self.ticksElapsed + self.TIME_STEP;
         if self.ticksElapsed > self.TICKS_BEFORE_DRAGGING then
-            DelranDragToPlace:Start(getPlayer(), self.items, self.owner);
+            DelranDragToPlace:ShowCursor();
             self:Reset();
         end
     end
@@ -166,24 +198,23 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
-    if DelranDragToPlace.placingItem and self == DelranDragToPlace.dragOwner then
+    if DelranDragToPlace.placingItem then
         local isMouseOverUi = IsMouseOverUi();
         if DelranDragToPlace.hidden and not isMouseOverUi then
-            DelranDragToPlace:ShowCursor();
+            DelranDragToPlace:StartShowCursorTimer();
         elseif not DelranDragToPlace.hidden and isMouseOverUi then
             DelranDragToPlace:HideCursor();
         end
     elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
-        DelranDragToPlace.WaitBeforeDragTimer:Start(self);
+        if not DelranDragToPlace.placingItem then
+            DelranDragToPlace:Start(getPlayer(), self.draggedItems, self);
+        end
     end
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
-    if self ~= DelranDragToPlace.dragOwner then
-        return
-    end
     if DelranDragToPlace.placingItem and not DelranDragToPlace.hidden then
         DelranDragToPlace:HideCursor();
     end
@@ -191,12 +222,16 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseUpOutside(dx, dy)
-    DelranDragToPlace.WaitBeforeDragTimer:Reset();
-    if self == DelranDragToPlace.dragOwner and DelranDragToPlace.placingItem and not IsMouseOverUi() then
+    --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
+    if not DelranDragToPlace.hidden and self == DelranDragToPlace.startedFrom and DelranDragToPlace.placingItem and not IsMouseOverUi() then
         --self.dragging = nil;
         DelranDragToPlace:PlaceItem();
     else
         ORIGINAL_ISInventoryPane_onMouseUpOutside(self, dx, dy);
+        if self == DelranDragToPlace.startedFrom then
+            self.dragging = nil;
+            DelranDragToPlace:Finish();
+        end;
     end
 end
 
