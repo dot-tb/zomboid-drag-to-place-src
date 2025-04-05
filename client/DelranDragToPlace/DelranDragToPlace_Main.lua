@@ -15,6 +15,8 @@ local function IsMouseOverUi()
     return false;
 end
 
+local TileFinder = require("DelranDragToPlace/DelranLib/DelranTileFinder");
+
 local DelranDragToPlace = {};
 
 ---@type IsoPlayer
@@ -70,6 +72,9 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
 end
 
 function DelranDragToPlace:Finish()
+    -- Hide the 3D cursor
+    getCell():setDrag(nil, self.playerIndex);
+
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
     Events.OnMouseMove.Remove(self.OnMouseMove);
     -- Clear the show cursor timer
@@ -108,9 +113,15 @@ function DelranDragToPlace:HideCursor()
     -- Set drag to nil, the 3d cursor will disapear but not be deleted
     getCell():setDrag(nil, self.playerIndex);
 
+    ---@type ISInventoryPage
+    local lootInventoryPage = getPlayerLoot(self.playerIndex);
     self.player:setDirectionAngle(self.startDirection);
-    --@type ISInventoryPage
-    -- local test = getPlayerData(self.playerIndex).lootInventory;
+
+    if self.player:shouldBeTurning() then
+        lootInventoryPage:setForceSelectedContainer(self.actualDraggedItem:getContainer())
+    end
+    lootInventoryPage:selectButtonForContainer(self.actualDraggedItem:getContainer())
+
     -- test:setNewContainer(self.startingContainer);
     -- Let the ISInventoryPane draw the dragged inventory item
     self.startedFrom.dragging = 1;
@@ -119,28 +130,46 @@ end
 function DelranDragToPlace:PlaceItem()
     -- Get the dragged item from the ISInventoryPane
     -- There should only be one as we don't start the drag if there is more than one dragged item
-    local draggedItem = self.draggedItems.items[1];
+    local draggedItem = self.actualDraggedItem;
     local worldItem = draggedItem:getWorldItem();
+    local tileFinder = TileFinder:New(self.player);
     if worldItem then
-        -- If the item is in the world, walk nest to it first
-        luautils.walkAdj(self.player, worldItem:getSquare(), true);
+        local itemSquare = worldItem:getSquare();
+        if not tileFinder:IsNextToSquare(itemSquare) then
+            -- If the item is in the world, walk nest to it first
+            local freeSquare = tileFinder:Find(itemSquare);
+            -- If there is no free square next to the item, we cannot reach it, abort.
+            if freeSquare == nil then
+                self:Finish();
+                return;
+            end
+            ISTimedActionQueue.add(ISWalkToTimedAction:new(self.player, freeSquare));
+        end
     end
     -- Transfer the item in the inventory if needed
     ISWorldObjectContextMenu.transferIfNeeded(self.player, draggedItem);
     -- Walk to the square where we want to drop the item
-    if luautils.walkAdjAltTest(self.player, self.placeItemCursor.selectedSqDrop, self.placeItemCursor.itemSq, true) then
-        -- Unequip the item if it is equipped on the player
-        if self.player:isEquipped(draggedItem) then
-            ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
+    ---@type IsoGridSquare
+    local dropSquare = self.placeItemCursor.selectedSqDrop;
+    if not tileFinder:IsNextToSquare(dropSquare) then
+        local freeSquare = tileFinder:Find(dropSquare);
+        if freeSquare == nil then
+            ISTimedActionQueue:clearQueue();
+            self:Finish();
+            return;
         end
-        -- Finaly, drop the item at the position and rotation of the cursor.
-        ISTimedActionQueue.add(ISDropWorldItemAction:new(self.player, draggedItem,
-            self.placeItemCursor.selectedSqDrop,
-            self.placeItemCursor.render3DItemXOffset, self.placeItemCursor.render3DItemYOffset,
-            self.placeItemCursor.render3DItemZOffset, self.placeItemCursor.render3DItemRot, false));
+        ISTimedActionQueue.add(ISWalkToTimedAction:new(self.player, freeSquare));
     end
-    -- Hide the 3D cursor
-    getCell():setDrag(nil, self.playerIndex);
+    -- Unequip the item if it is equipped on the player
+    if self.player:isEquipped(draggedItem) then
+        ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
+    end
+    --self.player:faceDirection();
+
+    -- Finaly, drop the item at the position and rotation of the cursor.
+    ISTimedActionQueue.add(ISDropWorldItemAction:new(self.player, draggedItem, dropSquare,
+        self.placeItemCursor.render3DItemXOffset, self.placeItemCursor.render3DItemYOffset,
+        self.placeItemCursor.render3DItemZOffset, self.placeItemCursor.render3DItemRot, false));
     -- Clean and stop
     self:Finish();
 end
@@ -237,7 +266,7 @@ function ISInventoryPane:onMouseUpOutside(dx, dy)
         DelranDragToPlace:PlaceItem();
     else
         ORIGINAL_ISInventoryPane_onMouseUpOutside(self, dx, dy);
-        if self == DelranDragToPlace.startedFrom then
+        if DelranDragToPlace.placingItem and self == DelranDragToPlace.startedFrom then
             self.dragging = nil;
             DelranDragToPlace:Finish();
         end;
