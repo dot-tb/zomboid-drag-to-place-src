@@ -12,7 +12,6 @@ ISObjectClickHandler.doRClick = function(object, x, y)
     if true then return end;
     if instanceof(object, "IsoObject") then
         --sq = object:getCurrentSquare();
-        dprint("BOOP")
         ---@type IsoObject
         local isoObject = object;
         dprint(isoObject);

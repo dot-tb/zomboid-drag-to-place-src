@@ -53,6 +53,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.playerIndex = self.player:getIndex();
     self.draggedItems = draggedItems;
     self.actualDraggedItem = draggedItems.items[1];
+    self.startingContainer = self.actualDraggedItem:getContainer();
 
     self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems.items);
     if self.actualDraggedItem:getWorldItem() then
@@ -108,7 +109,9 @@ function DelranDragToPlace:HideCursor()
     getCell():setDrag(nil, self.playerIndex);
 
     self.player:setDirectionAngle(self.startDirection);
-
+    --@type ISInventoryPage
+    -- local test = getPlayerData(self.playerIndex).lootInventory;
+    -- test:setNewContainer(self.startingContainer);
     -- Let the ISInventoryPane draw the dragged inventory item
     self.startedFrom.dragging = 1;
 end
