@@ -60,12 +60,16 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     end
     self.WaitBeforeShowCursorTimer:Start(self.startedFrom);
 
-    Events.OnPlayerMove.Add(self.OnPlayerMove);
+    function OnPlayerMoveTemp(_player)
+        self:OnPlayerMove(_player);
+    end
+
+    Events.OnPlayerMove.Add(OnPlayerMoveTemp);
     Events.OnMouseMove.Add(self.OnMouseMove);
 end
 
 function DelranDragToPlace:Finish()
-    Events.OnPlayerMove.Remove(self.OnPlayerMove);
+    Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
     Events.OnMouseMove.Remove(self.OnMouseMove);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
@@ -144,7 +148,7 @@ end
 ---@param player IsoPlayer
 function DelranDragToPlace:OnPlayerMove(player)
     if player == self.player then
-        --self.startDirection = player:getDirectionAngle();
+        self.startDirection = player:getDirectionAngle();
     end
 end
 
