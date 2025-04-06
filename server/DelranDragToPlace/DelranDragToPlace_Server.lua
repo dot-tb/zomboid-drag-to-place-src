@@ -1,3 +1,5 @@
+local DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main")
+
 local function dprint(...)
     if isDebugEnabled() then
         print("[DELRAN'S DRAG TO PLACE]: ", ...);
@@ -8,8 +10,12 @@ if not ORIGINAL_ISObjectClickHandler_doRClick then
     ORIGINAL_ISObjectClickHandler_doRClick = ISObjectClickHandler.doRClick;
 end
 ISObjectClickHandler.doRClick = function(object, x, y)
-    ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
-    if true then return end;
+    if DragToPlace.placingItem then
+        DragToPlace:Cancel();
+    else
+        ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
+    end
+    if true then return end
     if instanceof(object, "IsoObject") then
         --sq = object:getCurrentSquare();
         ---@type IsoObject
@@ -27,8 +33,6 @@ ISObjectClickHandler.doRClick = function(object, x, y)
                 ---dprint(worldObect:getWorldPosZ())
                 dprint(screenToIsoX(getPlayer():getIndex(), x, y, getPlayer():getZ()));
                 dprint(screenToIsoY(getPlayer():getIndex(), x, y, getPlayer():getZ()));
-
-                dprint(IsoObjectPicker.Instance:Pick(x, y));
             end
         end
     end
