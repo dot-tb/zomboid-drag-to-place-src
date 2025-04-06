@@ -52,6 +52,7 @@ end
 
 function DelranDragToPlace:Stop()
     -- Hide the 3D cursor
+    ---@diagnostic disable-next-line: param-type-mismatch
     getCell():setDrag(nil, self.playerIndex);
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
@@ -99,6 +100,7 @@ function DelranDragToPlace:HideCursor()
     if self.canceled then return end
     self.hidden = true;
     -- Set drag to nil, the 3d cursor will disapear but not be deleted
+    ---@diagnostic disable-next-line: param-type-mismatch
     getCell():setDrag(nil, self.playerIndex);
 
     ---@type ISInventoryPage
@@ -121,22 +123,25 @@ function DelranDragToPlace:PlaceItem()
     -- There should only be one as we don't start the drag if there is more than one dragged item
     local draggedItem = self.actualDraggedItem;
     local worldItem = draggedItem:getWorldItem();
-    local tileFinder = TileFinder:New(self.player);
+    local tileFinder = TileFinder:BuildForPlayer(self.player);
+    local pickupSquare = nil;
     if worldItem then
         local itemSquare = worldItem:getSquare();
         if not tileFinder:IsNextToSquare(itemSquare) then
             -- If the item is in the world, walk nest to it first
-            local freeSquare = tileFinder:Find(itemSquare);
+            pickupSquare = tileFinder:Find(itemSquare);
             -- If there is no free square next to the item, we cannot reach it, abort.
-            if freeSquare == nil then
+            if pickupSquare == nil then
                 self:Stop();
                 return;
             end
-            ISTimedActionQueue.add(ISWalkToTimedAction:new(self.player, freeSquare));
+            ISTimedActionQueue.add(ISWalkToTimedAction:new(self.player, pickupSquare));
         end
     end
     -- Transfer the item in the inventory if needed
     ISWorldObjectContextMenu.transferIfNeeded(self.player, draggedItem);
+    pickupSquare = pickupSquare or self.player:getSquare();
+    tileFinder = TileFinder:BuildForSquare(pickupSquare);
     -- Walk to the square where we want to drop the item
     ---@type IsoGridSquare
     local dropSquare = self.placeItemCursor.selectedSqDrop;
@@ -154,6 +159,11 @@ function DelranDragToPlace:PlaceItem()
         ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
     end
     --self.player:faceDirection();
+    getMouseX();
+    getMouseY();
+    local x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+    local y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+    ISTimedActionQueue.add(FaceCoordinatesAction:new(self.player, x, y));
 
     -- Finaly, drop the item at the position and rotation of the cursor.
     ISTimedActionQueue.add(ISDropWorldItemAction:new(self.player, draggedItem, dropSquare,

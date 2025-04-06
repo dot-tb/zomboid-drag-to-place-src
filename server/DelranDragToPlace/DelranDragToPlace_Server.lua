@@ -9,6 +9,7 @@ end
 if not ORIGINAL_ISObjectClickHandler_doRClick then
     ORIGINAL_ISObjectClickHandler_doRClick = ISObjectClickHandler.doRClick;
 end
+---@diagnostic disable-next-line: duplicate-set-field
 ISObjectClickHandler.doRClick = function(object, x, y)
     if DragToPlace.placingItem then
         DragToPlace:Cancel();
