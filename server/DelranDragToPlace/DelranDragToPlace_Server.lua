@@ -1,10 +1,7 @@
 local DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main")
+local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils")
 
-local function dprint(...)
-    if isDebugEnabled() then
-        print("[DELRAN'S DRAG TO PLACE]: ", ...);
-    end
-end
+local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE - SERVER]")
 
 if not ORIGINAL_ISObjectClickHandler_doRClick then
     ORIGINAL_ISObjectClickHandler_doRClick = ISObjectClickHandler.doRClick;

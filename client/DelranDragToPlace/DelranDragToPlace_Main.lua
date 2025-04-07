@@ -23,7 +23,7 @@ DelranDragToPlace.hidden = true;
 DelranDragToPlace.canceled = false;
 
 ---@param player IsoPlayer
----@param draggedItems ISInventoryPaneDraggedItems
+---@param draggedItems InventoryItem[]
 ---@param startedFrom ISInventoryPane
 function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.placingItem = true;
@@ -33,10 +33,10 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.startDirection = self.player:getDirectionAngle();
     self.playerIndex = self.player:getIndex();
     self.draggedItems = draggedItems;
-    self.actualDraggedItem = draggedItems.items[1];
+    self.actualDraggedItem = draggedItems[1];
     self.startingContainer = self.actualDraggedItem:getContainer();
 
-    self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems.items);
+    self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems);
     if self.actualDraggedItem:getWorldItem() then
         self.placeItemCursor.render3DItemRot = self.actualDraggedItem:getWorldZRotation();
     end
@@ -88,7 +88,6 @@ end
 function DelranDragToPlace:ShowCursor()
     -- Setting dragging from the ISInventoryPane to nil will
     --  stop the renderering of the dragged items
-    dprint("Show cursor");
     self.startedFrom.dragging = nil;
     self.hidden = false;
 
@@ -159,8 +158,6 @@ function DelranDragToPlace:PlaceItem()
         ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
     end
     --self.player:faceDirection();
-    getMouseX();
-    getMouseY();
     local x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
     local y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
     ISTimedActionQueue.add(FaceCoordinatesAction:new(self.player, x, y));
@@ -171,9 +168,6 @@ function DelranDragToPlace:PlaceItem()
         self.placeItemCursor.render3DItemZOffset, self.placeItemCursor.render3DItemRot, false));
     -- Clean and stop
     self:Stop();
-end
-
-function DelranDragToPlace:OnMouseMove(x, y, xMultiplied, yMultiplied)
 end
 
 ---@param player IsoPlayer
@@ -226,7 +220,6 @@ end
 ---@param owner ISInventoryPane
 function DelranDragToPlace.WaitBeforeShowCursorTimer:Start(owner)
     if self.owner == owner then return end;
-    dprint("starting timer");
     self.owner = owner;
     self.items = self.owner.draggedItems;
 
@@ -243,6 +236,8 @@ function DelranDragToPlace.WaitBeforeShowCursorTimer:Reset()
     self.owner = nil;
     self.items = nil;
 end
+
+local DragAndDrop = require("InventoryTetris/System/DragAndDrop");
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
