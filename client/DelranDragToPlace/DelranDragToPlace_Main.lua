@@ -52,8 +52,10 @@ end
 
 function DelranDragToPlace:Stop()
     -- Hide the 3D cursor
-    ---@diagnostic disable-next-line: param-type-mismatch
-    getCell():setDrag(nil, self.playerIndex);
+    if not self.hidden then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        getCell():setDrag(nil, self.playerIndex);
+    end
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
     Events.OnMouseMove.Remove(self.OnMouseMove);
@@ -175,6 +177,14 @@ function DelranDragToPlace:OnPlayerMove(player)
     if player == self.player then
         self.startDirection = player:getDirectionAngle();
     end
+end
+
+function DelranDragToPlace:IsHidden()
+    return self.hidden;
+end
+
+function DelranDragToPlace:IsVisible()
+    return not self.hidden;
 end
 
 -- Function overrides
