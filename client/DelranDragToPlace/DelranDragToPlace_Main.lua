@@ -47,7 +47,6 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     end
 
     Events.OnPlayerMove.Add(OnPlayerMoveTemp);
-    Events.OnMouseMove.Add(self.OnMouseMove);
 end
 
 function DelranDragToPlace:Stop()
@@ -58,7 +57,6 @@ function DelranDragToPlace:Stop()
     end
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
-    Events.OnMouseMove.Remove(self.OnMouseMove);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
 
@@ -97,29 +95,33 @@ function DelranDragToPlace:ShowCursor()
     getCell():setDrag(self.placeItemCursor, self.playerIndex)
 end
 
-function DelranDragToPlace:HideCursor()
-    if self.canceled then return end
+---@param resetDirection? boolean
+function DelranDragToPlace:HideCursor(resetDirection)
+    if self.canceled or self.hidden then return end
     self.hidden = true;
     -- Set drag to nil, the 3d cursor will disapear but not be deleted
     ---@diagnostic disable-next-line: param-type-mismatch
     getCell():setDrag(nil, self.playerIndex);
 
-    ---@type ISInventoryPage
-    local lootInventoryPage = getPlayerLoot(self.playerIndex);
-    self.player:setDirectionAngle(self.startDirection);
+    resetDirection = resetDirection == nil or resetDirection;
+    if resetDirection then
+        ---@type ISInventoryPage
+        local lootInventoryPage = getPlayerLoot(self.playerIndex);
+        self.player:setDirectionAngle(self.startDirection);
 
-    if self.player:shouldBeTurning() then
-        lootInventoryPage:setForceSelectedContainer(self.actualDraggedItem:getContainer())
+        if self.player:shouldBeTurning() then
+            lootInventoryPage:setForceSelectedContainer(self.actualDraggedItem:getContainer())
+        end
+        lootInventoryPage:selectButtonForContainer(self.actualDraggedItem:getContainer())
     end
-    lootInventoryPage:selectButtonForContainer(self.actualDraggedItem:getContainer())
 
-    -- test:setNewContainer(self.startingContainer);
     -- Let the ISInventoryPane draw the dragged inventory item
     self.startedFrom.dragging = 1;
 end
 
 function DelranDragToPlace:PlaceItem()
     if self.canceled then return end
+    self:HideCursor(false);
     -- Get the dragged item from the ISInventoryPane
     -- There should only be one as we don't start the drag if there is more than one dragged item
     local draggedItem = self.actualDraggedItem;
@@ -169,7 +171,10 @@ function DelranDragToPlace:PlaceItem()
         self.placeItemCursor.render3DItemXOffset, self.placeItemCursor.render3DItemYOffset,
         self.placeItemCursor.render3DItemZOffset, self.placeItemCursor.render3DItemRot, false));
     -- Clean and stop
-    self:Stop();
+    self.canceled = true;
+    ISTimedActionQueue.add(ExecuteCallbackAction:new(self.player, function()
+        self:Stop();
+    end));
 end
 
 ---@param player IsoPlayer
@@ -180,11 +185,11 @@ function DelranDragToPlace:OnPlayerMove(player)
 end
 
 function DelranDragToPlace:IsHidden()
-    return self.hidden;
+    return not self.placingItem or self.hidden;
 end
 
 function DelranDragToPlace:IsVisible()
-    return not self.hidden;
+    return self.placingItem and not self.hidden;
 end
 
 -- Function overrides

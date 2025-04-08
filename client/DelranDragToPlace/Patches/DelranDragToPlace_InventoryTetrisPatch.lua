@@ -28,9 +28,9 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
     --dprint("onMouseMoveOutside")
     if DragToPlace.placingItem and DragToPlace.startedFrom == self then
         local isMouseOverUI = DelranUtils.IsMouseOverUI();
-        if DragToPlace.hidden and not isMouseOverUI then
+        if DragToPlace:IsHidden() and not isMouseOverUI then
             DragToPlace:StartShowCursorTimer();
-        elseif not DragToPlace.hidden and isMouseOverUI then
+        elseif DragToPlace:IsVisible() and isMouseOverUI then
             DragToPlace:HideCursor();
         end
     elseif DragAndDrop:isDragging() and not DragToPlace.placingItem then
@@ -46,6 +46,7 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
             -- Handle drag and drop from ItemGridUI
         end
         if draggedItems then
+            dprint("Starting new drag")
             DragToPlace:Start(getPlayer(), draggedItems, self);
         end
     end
@@ -62,20 +63,25 @@ end
 ORIGINAL_DragItemRenderer_render = ORIGINAL_DragItemRenderer_render or DragItemRenderer.render;
 ---@diagnostic disable-next-line: duplicate-set-field
 function DragItemRenderer:render()
-    if DragToPlace.placingItem and not DragToPlace.hidden then return end;
+    -- Disabling Inventory tetris drag renderer if the 3d cursor is visible
+    if DragToPlace:IsVisible() then return end;
     ORIGINAL_DragItemRenderer_render(self);
 end
 
 local EquipmentUITypes = { "EquipmentUI", "EquipmentSlot", "EquipmentSuperSlot", "WeaponSlot", "HotbarSlot" }
 
 local function CancelOnMouseUp(UIElement)
+    -- Event should always come from an ISInventoryPane, except for EquipmentUI
     if UIElement.Type ~= "ISInventoryPane" then
+        -- If we got a mouse up on a EquipmentUI ui, stop no matter what
         for _, EquipmentUIType in ipairs(EquipmentUITypes) do
             if EquipmentUIType == UIElement.Type then
                 DragToPlace:Stop();
                 break
             end
         end
+        -- If the cursor is hidden, it means that we are over UI,
+        --   then we need to cancel the drag
     elseif DragToPlace.placingItem and DragToPlace:IsHidden() then
         DragToPlace:Stop();
     end
@@ -85,7 +91,7 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseUpOutside(x, y)
-    ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
+    --ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
     --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
     if not DragToPlace.hidden and self == DragToPlace.startedFrom then
         DragToPlace:PlaceItem();
