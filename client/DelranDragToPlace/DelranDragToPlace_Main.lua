@@ -31,14 +31,16 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
 
     self.player = player;
     self.startDirection = self.player:getDirectionAngle();
-    self.playerIndex = self.player:getIndex();
+    self.playerIndex = self.player:getPlayerNum();
     self.draggedItems = draggedItems;
     self.actualDraggedItem = draggedItems[1];
     self.startingContainer = self.actualDraggedItem:getContainer();
 
+    self.worldItem = self.actualDraggedItem:getWorldItem();
+
     self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems);
-    if self.actualDraggedItem:getWorldItem() then
-        self.placeItemCursor.render3DItemRot = self.actualDraggedItem:getWorldZRotation();
+    if self.worldItem then
+        self.placeItemCursor.render3DItemRot = self.actualDraggedItem.worldZRotation;
     end
     self.WaitBeforeShowCursorTimer:Start(self.startedFrom);
 
@@ -266,7 +268,7 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
         end
     elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         if not DelranDragToPlace.placingItem then
-            DelranDragToPlace:Start(getPlayer(), self.draggedItems, self);
+            DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
         end
     end
 end
