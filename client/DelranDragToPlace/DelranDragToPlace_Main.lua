@@ -1,9 +1,19 @@
 local TileFinder = require("DelranDragToPlace/DelranLib/DelranTileFinder");
 local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
+require "server/BuildingObjects/ISPlace3DItemCursor"
 
 local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
 local DelranDragToPlace = {};
+-- Mod data to keep track of the rotation of placed items.
+---@type { [InventoryItem]: integer }
+DelranDragToPlace.placedItemsRotation = nil;
+Events.OnInitGlobalModData.Add(function()
+    local dragToPlaceModData = ModData.getOrCreate("DelranDragToPlaceB41")
+    dragToPlaceModData.placedItemsRotation = dragToPlaceModData.placedItemsRotation or {};
+    DelranDragToPlace.placedItemsRotation = dragToPlaceModData.placedItemsRotation;
+end)
+
 
 ---@type IsoPlayer
 DelranDragToPlace.player = nil;
@@ -39,9 +49,10 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.worldItem = self.actualDraggedItem:getWorldItem();
 
     self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems);
-    if self.worldItem then
-        self.placeItemCursor.render3DItemRot = self.actualDraggedItem.worldZRotation;
+    if self.worldItem and self.placedItemsRotation[self.worldItem] then
+        self.placeItemCursor.render3DItemRot = self.placedItemsRotation[self.worldItem];
     end
+
     self.WaitBeforeShowCursorTimer:Start(self.startedFrom);
 
     function OnPlayerMoveTemp(_player)
@@ -177,6 +188,7 @@ function DelranDragToPlace:PlaceItem()
     ISTimedActionQueue.add(ExecuteCallbackAction:new(self.player, function()
         self:Stop();
     end));
+    dprint(ISTimedActionQueue.queues);
 end
 
 ---@param player IsoPlayer
@@ -254,8 +266,6 @@ function DelranDragToPlace.WaitBeforeShowCursorTimer:Reset()
     self.items = nil;
 end
 
-local DragAndDrop = require("InventoryTetris/System/DragAndDrop");
-
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
@@ -301,6 +311,27 @@ function ISInventoryPane:onMouseUp(dx, dy)
         DelranDragToPlace:Stop();
     end
     ORIGINAL_ISInventoryPane_onMouseUp(self, dx, dy);
+end
+
+-- Not working
+ORIGINAL_IsoWorldInventoryObject_removeFromWorld = ORIGINAL_IsoWorldInventoryObject_removeFromWorld or
+    IsoWorldInventoryObject.removeFromWorld;
+---@diagnostic disable-next-line: duplicate-set-field
+function IsoWorldInventoryObject:removeFromWorld()
+    DelranDragToPlace.placedItemsRotation[self:getItem()] = nil;
+    ORIGINAL_IsoWorldInventoryObject_removeFromWorld(self);
+end
+
+ORIGINAL_Mouse_isLeftDown = ORIGINAL_Mouse_isLeftDown or Mouse.isLeftDown
+---@diagnostic disable-next-line: duplicate-set-field
+function Mouse:isLeftDown()
+    -- If the drag and place cursor is visible, make the game believe
+    --  that we are not pressing left click, this will disable the square
+    --  lock and draw the floor ghost tile on the right square
+    if DelranDragToPlace:IsVisible() then
+        return false;
+    end
+    return ORIGINAL_Mouse_isLeftDown(self);
 end
 
 return DelranDragToPlace

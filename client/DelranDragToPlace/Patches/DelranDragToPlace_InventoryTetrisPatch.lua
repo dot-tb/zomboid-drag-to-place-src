@@ -1,7 +1,7 @@
 if not getActivatedMods():contains("\\INVENTORY_TETRIS") then return end;
 
-DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main");
-DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
+local DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main");
+local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
 
 local dprint = DelranUtils.GetDebugPrint("[DRAG TO PLACE, TETRIS PATCH]")
 

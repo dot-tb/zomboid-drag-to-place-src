@@ -8,31 +8,22 @@ if not ORIGINAL_ISObjectClickHandler_doRClick then
 end
 ---@diagnostic disable-next-line: duplicate-set-field
 ISObjectClickHandler.doRClick = function(object, x, y)
+    -- Cancel Drag to place if we right click on the world.
     if DragToPlace.placingItem then
         DragToPlace:Cancel();
     else
         ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
     end
-    if true then return end
-    if instanceof(object, "IsoObject") then
-        --sq = object:getCurrentSquare();
-        ---@type IsoObject
-        local isoObject = object;
-        dprint(isoObject);
-        local square = isoObject:getSquare();
-        local objects = square:getWorldObjects();
-        for i = 0, objects:size() - 1, 1 do
-            ---@type IsoWorldInventoryObject
-            local worldObect = objects:get(i);
-            if instanceof(worldObect, "IsoWorldInventoryObject") then
-                dprint(worldObect:getSprite());
-                dprint(worldObect:getWorldPosX())
-                dprint(worldObect:getWorldPosY())
-                ---dprint(worldObect:getWorldPosZ())
-                dprint(screenToIsoX(getPlayer():getIndex(), x, y, getPlayer():getZ()));
-                dprint(screenToIsoY(getPlayer():getIndex(), x, y, getPlayer():getZ()));
-            end
-        end
+end
+
+-- Not working
+ORIGINAL_ISPlace3DItemCursor_handleRotate = ORIGINAL_ISPlace3DItemCursor_handleRotate or
+    ISPlace3DItemCursor.handleRotate;
+---@diagnostic disable-next-line: duplicate-set-field
+function ISPlace3DItemCursor:handleRotate(pressed, reverse)
+    ORIGINAL_ISPlace3DItemCursor_handleRotate(self, pressed, reverse);
+    if (DragToPlace:IsVisible()) then
+        DragToPlace.placedItemsRotation[DragToPlace.actualDraggedItem] = self.render3DItemRot;
     end
 end
 
