@@ -5,10 +5,10 @@ local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
 local keyBinding = keyBinding;
 local Keyboard = Keyboard;
-local dragToPlaceCtrlKey = "drag_to_place_left_ctrl_key";
+local dragToPlaceRotateKey = "drag_to_place_left_rotate_key";
 local bind = {};
-bind.value = dragToPlaceCtrlKey;
-bind.key = Keyboard.KEY_LCONTROL;
+bind.value = dragToPlaceRotateKey;
+bind.key = Keyboard.KEY_LSHIFT;
 table.insert(keyBinding, bind);
 
 ---@class DelranDragToPlace
@@ -343,7 +343,7 @@ end
 local isKeyDown = isKeyDown;
 ---@param dragToPlace DelranDragToPlace
 function DelranDragToPlace.OnMouseMove(dragToPlace, x, y)
-    if dragToPlace:IsVisible() and isKeyDown(Core:getKey(dragToPlaceCtrlKey)) then
+    if dragToPlace:IsVisible() and isKeyDown(Core:getKey(dragToPlaceRotateKey)) then
         local z = dragToPlace.player:getZ();
         local isoX = screenToIsoX(dragToPlace.playerIndex, x, y, z);
         local isoY = screenToIsoY(dragToPlace.playerIndex, x, y, z);
