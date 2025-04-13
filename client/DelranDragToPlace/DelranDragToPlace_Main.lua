@@ -175,8 +175,11 @@ function DelranDragToPlace:PlaceItem()
         ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
     end
     --self.player:faceDirection();
+    ---@diagnostic disable-next-line: param-type-mismatch
     local x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+    ---@diagnostic disable-next-line: param-type-mismatch
     local y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+
     ISTimedActionQueue.add(FaceCoordinatesAction:new(self.player, x, y));
 
     -- Finaly, drop the item at the position and rotation of the cursor.
@@ -313,15 +316,6 @@ function ISInventoryPane:onMouseUp(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseUp(self, dx, dy);
 end
 
--- Not working
-ORIGINAL_IsoWorldInventoryObject_removeFromWorld = ORIGINAL_IsoWorldInventoryObject_removeFromWorld or
-    IsoWorldInventoryObject.removeFromWorld;
----@diagnostic disable-next-line: duplicate-set-field
-function IsoWorldInventoryObject:removeFromWorld()
-    DelranDragToPlace.placedItemsRotation[self:getItem()] = nil;
-    ORIGINAL_IsoWorldInventoryObject_removeFromWorld(self);
-end
-
 ORIGINAL_Mouse_isLeftDown = ORIGINAL_Mouse_isLeftDown or Mouse.isLeftDown
 ---@diagnostic disable-next-line: duplicate-set-field
 function Mouse:isLeftDown()
@@ -332,6 +326,20 @@ function Mouse:isLeftDown()
         return false;
     end
     return ORIGINAL_Mouse_isLeftDown(self);
+end
+
+-- ISInventoryPane will catch the fact that we are trying to drop an item
+-- inside the update function, we hijack the drop item function to cancel
+-- the drop if the dragging player is trying to drop the dragged item.
+ORIGINAL_ISUnequip_new = ORIGINAL_ISUnequip_new or ISInventoryPaneContextMenu.dropItem;
+---@diagnostic disable-next-line: duplicate-set-field
+function ISInventoryPaneContextMenu.dropItem(item, player)
+    if DelranDragToPlace.placingItem then
+        if DelranDragToPlace.playerIndex == player and DelranDragToPlace.actualDraggedItem == item then
+            return
+        end
+    end
+    ORIGINAL_ISUnequip_new(item, player);
 end
 
 return DelranDragToPlace

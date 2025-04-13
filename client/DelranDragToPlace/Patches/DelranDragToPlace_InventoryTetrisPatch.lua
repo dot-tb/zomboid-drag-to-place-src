@@ -1,14 +1,26 @@
-if not getActivatedMods():contains("\\INVENTORY_TETRIS") then return end;
+local activatedMods = getActivatedMods();
+if not activatedMods:contains("INVENTORY_TETRIS") then return end;
 
 local DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main");
 local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
 
-local dprint = DelranUtils.GetDebugPrint("[DRAG TO PLACE, TETRIS PATCH]")
+require "EquipmentUI/DragAndDrop"
+require "InventoryTetris/Patches/Core/DragAndDrop_TetrisExtensions"
+require "InventoryTetris/ItemGrid/UI/Container/ItemGridContainerUI"
+require "InventoryTetris/ItemGrid/UI/TetrisDragItemRenderer"
+require "EquipmentUI/UI/EquipmentUI"
+require "EquipmentUI/UI/EquipmentSlot"
+require "EquipmentUI/UI/EquipmentSuperSlot"
+require "EquipmentUI/UI/WeaponSlot"
+require "EquipmentUI/UI/HotbarSlot"
 
-local DragAndDrop = require("InventoryTetris/System/DragAndDrop");
-local DragItemRenderer = require("InventoryTetris/UI/TetrisDragItemRenderer");
-local ItemGridUI = require("InventoryTetris/UI/Grid/ItemGridUI_rendering");
-local ItemGridContainerUI = require("InventoryTetris/UI/Container/ItemGridContainerUI")
+
+local dprint = DelranUtils.GetDebugPrint("[DRAG TO PLACE, TETRIS PATCH]");
+dprint("Loading module");
+local DragAndDrop = DragAndDrop;
+local DragItemRenderer = DragItemRenderer;
+--local ItemGridUI = require("InventoryTetris/UI/Grid/ItemGridUI_rendering");
+local ItemGridContainerUI = ItemGridContainerUI;
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
@@ -34,7 +46,8 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
             DragToPlace:HideCursor();
         end
     elseif DragAndDrop:isDragging() and not DragToPlace.placingItem then
-        local vanillaStack = DragAndDrop.getDraggedStacks();
+        dprint(DragAndDrop);
+        local vanillaStack = DragAndDrop.getDraggedStack();
         if not vanillaStack then return end;
 
         local draggedItems = nil;
@@ -163,24 +176,28 @@ function EquipmentUI:onMouseUp(x, y)
 end
 
 ORIGINAL_EquipmentSlot_onMouseUp = ORIGINAL_EquipmentSlot_onMouseUp or EquipmentSlot.onMouseUp;
+---@diagnostic disable-next-line: duplicate-set-field
 function EquipmentSlot:onMouseUp(x, y)
     CancelOnMouseUp(self);
     ORIGINAL_EquipmentSlot_onMouseUp(self, x, y);
 end
 
 ORIGINAL_EquipmentSuperSlot_onMouseUp = ORIGINAL_EquipmentSuperSlot_onMouseUp or EquipmentSuperSlot.onMouseUp;
+---@diagnostic disable-next-line: duplicate-set-field
 function EquipmentSuperSlot:onMouseUp(x, y)
     CancelOnMouseUp(self);
     ORIGINAL_EquipmentSuperSlot_onMouseUp(self, x, y);
 end
 
 ORIGINAL_WeaponSlot_onMouseUp = ORIGINAL_WeaponSlot_onMouseUp or WeaponSlot.onMouseUp;
+---@diagnostic disable-next-line: duplicate-set-field
 function WeaponSlot:onMouseUp(x, y)
     CancelOnMouseUp(self);
     ORIGINAL_WeaponSlot_onMouseUp(self, x, y);
 end
 
 ORIGINAL_HotbarSlot_onMouseUp = ORIGINAL_HotbarSlot_onMouseUp or HotbarSlot.onMouseUp;
+---@diagnostic disable-next-line: duplicate-set-field
 function HotbarSlot:onMouseUp(x, y)
     CancelOnMouseUp(self);
     ORIGINAL_HotbarSlot_onMouseUp(self, x, y);
