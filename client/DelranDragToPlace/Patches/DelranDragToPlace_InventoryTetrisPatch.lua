@@ -48,6 +48,8 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
     elseif DragAndDrop:isDragging() and not DragToPlace.placingItem then
         dprint(DragAndDrop);
         local vanillaStack = DragAndDrop.getDraggedStack();
+        ---@cast vanillaStack ISInventoryPaneDraggedItems
+        ---@
         if not vanillaStack then return end;
 
         local draggedItems = nil;
@@ -89,6 +91,7 @@ local function CancelOnMouseUp(UIElement)
         -- If we got a mouse up on a EquipmentUI ui, stop no matter what
         for _, EquipmentUIType in ipairs(EquipmentUITypes) do
             if EquipmentUIType == UIElement.Type then
+                dprint("STOPING CAUSE OF INVENTORY UI");
                 DragToPlace:Stop();
                 break
             end
@@ -96,6 +99,7 @@ local function CancelOnMouseUp(UIElement)
         -- If the cursor is hidden, it means that we are over UI,
         --   then we need to cancel the drag
     elseif DragToPlace.placingItem and DragToPlace:IsHidden() then
+        dprint("STOPING CAUSE OF THINGY");
         DragToPlace:Stop();
     end
 end
@@ -104,6 +108,10 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseUpOutside(x, y)
+    if DragToPlace.placingItem and DragToPlace.canceled then
+        ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
+        return;
+    end
     --ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
     --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
     if not DragToPlace.hidden and self == DragToPlace.startedFrom then

@@ -16,7 +16,6 @@ ISObjectClickHandler.doRClick = function(object, x, y)
     end
 end
 
--- Not working
 ORIGINAL_ISPlace3DItemCursor_handleRotate = ORIGINAL_ISPlace3DItemCursor_handleRotate or
     ISPlace3DItemCursor.handleRotate;
 ---@diagnostic disable-next-line: duplicate-set-field

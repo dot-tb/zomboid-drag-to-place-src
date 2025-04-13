@@ -191,7 +191,6 @@ function DelranDragToPlace:PlaceItem()
     ISTimedActionQueue.add(ExecuteCallbackAction:new(self.player, function()
         self:Stop();
     end));
-    dprint(ISTimedActionQueue.queues);
 end
 
 ---@param player IsoPlayer
@@ -334,6 +333,7 @@ end
 ORIGINAL_ISUnequip_new = ORIGINAL_ISUnequip_new or ISInventoryPaneContextMenu.dropItem;
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPaneContextMenu.dropItem(item, player)
+    dprint("ARE WE FUCKING HERE ?")
     if DelranDragToPlace.placingItem then
         if DelranDragToPlace.playerIndex == player and DelranDragToPlace.actualDraggedItem == item then
             return
