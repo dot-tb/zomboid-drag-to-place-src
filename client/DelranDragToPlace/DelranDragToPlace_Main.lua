@@ -3,23 +3,35 @@ local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
 
 local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
+local keyBinding = keyBinding;
+local Keyboard = Keyboard;
+local dragToPlaceCtrlKey = "drag_to_place_left_ctrl_key";
+local bind = {};
+bind.value = dragToPlaceCtrlKey;
+bind.key = Keyboard.KEY_LCONTROL;
+table.insert(keyBinding, bind);
+
+---@class DelranDragToPlace
+---@field player IsoPlayer
+---@field playerIndex integer
+---@field draggedItems ISInventoryPaneDraggedItems
+---@field actualDraggedItem InventoryItem
+---@field startedFrom ISInventoryPane
+---@field placeItemCursor ISPlace3DItemCursor
+---@field placingItem boolean
+---@field hidden boolean
+---@field canceled boolean
 local DelranDragToPlace = {};
 
----@type IsoPlayer
 DelranDragToPlace.player = nil;
----@type integer
 DelranDragToPlace.playerIndex = nil;
----@type ISInventoryPaneDraggedItems
 DelranDragToPlace.draggedItems = nil;
----@type InventoryItem
 DelranDragToPlace.actualDraggedItem = nil;
----@type ISInventoryPane
 DelranDragToPlace.startedFrom = nil;
----@type ISPlace3DItemCursor
 DelranDragToPlace.placeItemCursor = nil;
 
-DelranDragToPlace.placingItem = false;
 DelranDragToPlace.hidden = true;
+DelranDragToPlace.placingItem = false;
 DelranDragToPlace.canceled = false;
 
 ---@param player IsoPlayer
@@ -318,6 +330,36 @@ function ISInventoryPaneContextMenu.dropItem(item, player)
     ORIGINAL_ISUnequip_new(item, player);
 end
 
+function DelranDragToPlace:OnMouseDown(x, y)
+    dprint("nullifyAiming")
+    getPlayer():nullifyAiming();
+    getPlayer():setForceAim(false);
+    if self.player then
+    end
+    if self:IsVisible() then
+    end
+end
+
+local isKeyDown = isKeyDown;
+---@param dragToPlace DelranDragToPlace
+function DelranDragToPlace.OnMouseMove(dragToPlace, x, y)
+    if dragToPlace:IsVisible() and isKeyDown(Core:getKey(dragToPlaceCtrlKey)) then
+        local z = dragToPlace.player:getZ();
+        local isoX = screenToIsoX(dragToPlace.playerIndex, x, y, z);
+        local isoY = screenToIsoY(dragToPlace.playerIndex, x, y, z);
+    end
+end
+
+Events.OnMouseDown.Add(function(x, y)
+    DelranDragToPlace:OnMouseDown(x, y);
+end)
+Events.OnMouseMove.Add(function(x, y)
+end)
+Events.OnRightMouseDown.Add(function(x, y)
+    DelranDragToPlace:OnMouseDown(x, y);
+end)
+
+
 return DelranDragToPlace
 
 --[[
@@ -330,5 +372,55 @@ ISInventoryPage.onKeyPressed = function(key)
         getPlayerInventory(0):setVisible(not getPlayerInventory(0):getIsVisible());
         getPlayerLoot(0):setVisible(getPlayerInventory(0):getIsVisible());
     end
+end
+
+local bind = {};
+bind.value = "[InventoryTetris]";
+table.insert(keyBinding, bind);
+
+bind = {};
+bind.value = "tetris_rotate_item";
+bind.key = Keyboard.KEY_R;
+table.insert(keyBinding, bind);
+
+bind = {};
+bind.value = "tetris_ctrl_button";
+bind.key = Keyboard.KEY_LCONTROL;
+table.insert(keyBinding, bind);
+
+bind = {};
+bind.value = "tetris_alt_button";
+bind.key = Keyboard.KEY_LMENU;
+table.insert(keyBinding, bind);
+
+bind = {};
+bind.value = "tetris_shift_button";
+bind.key = Keyboard.KEY_LSHIFT;
+table.insert(keyBinding, bind);
+
+bind = {};
+bind.value = "tetris_stack_split";
+bind.key = Keyboard.KEY_LCONTROL;
+table.insert(keyBinding, bind);
+
+bind = {};
+bind.value = "tetris_close_window";
+bind.key = Keyboard.KEY_I;
+table.insert(keyBinding, bind);
+
+local function isCtrlButtonDown()
+    return isKeyDown(Core:getKey("tetris_ctrl_button"))
+end
+
+local function isAltButtonDown()
+    return isKeyDown(Core:getKey("tetris_alt_button"))
+end
+
+local function isShiftButtonDown()
+    return isKeyDown(Core:getKey("tetris_shift_button"))
+end
+
+local function isStackSplitDown()
+    return isKeyDown(Core:getKey("tetris_stack_split"))
 end
 ]]

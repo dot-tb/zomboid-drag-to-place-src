@@ -1,13 +1,12 @@
 if not getActivatedMods():contains("\\INVENTORY_TETRIS") then return end;
 
-DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main");
-DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
+local DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main");
+local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
 
 local dprint = DelranUtils.GetDebugPrint("[DRAG TO PLACE, TETRIS PATCH]")
 
 local DragAndDrop = require("InventoryTetris/System/DragAndDrop");
 local DragItemRenderer = require("InventoryTetris/UI/TetrisDragItemRenderer");
-local ItemGridUI = require("InventoryTetris/UI/Grid/ItemGridUI_rendering");
 local ItemGridContainerUI = require("InventoryTetris/UI/Container/ItemGridContainerUI")
 
 ---@diagnostic disable-next-line: duplicate-set-field
