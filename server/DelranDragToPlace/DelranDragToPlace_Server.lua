@@ -13,7 +13,7 @@ ISObjectClickHandler.doRClick = function(object, x, y)
     else
         ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
     end
-    if true then return end
+    --[[
     if instanceof(object, "IsoObject") then
         --sq = object:getCurrentSquare();
         ---@type IsoObject
@@ -34,6 +34,14 @@ ISObjectClickHandler.doRClick = function(object, x, y)
             end
         end
     end
+    ]]
+end
+
+local original_isvalid = ISPlace3DItemCursor.isValid;
+---@diagnostic disable-next-line: duplicate-set-field
+function ISPlace3DItemCursor:isValid(square)
+    if DragToPlace.placingItem then return true end;
+    return original_isvalid(self, square);
 end
 
 --[[
