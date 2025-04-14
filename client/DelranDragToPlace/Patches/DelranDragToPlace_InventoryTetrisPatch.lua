@@ -33,6 +33,7 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
             DragToPlace:HideCursor();
         end
     elseif DragAndDrop:isDragging() and not DragToPlace.placingItem then
+        ---@type ISInventoryPaneDraggedItems
         local vanillaStack = DragAndDrop.getDraggedStacks();
         if not vanillaStack then return end;
 
@@ -45,7 +46,6 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
             -- Handle drag and drop from ItemGridUI
         end
         if draggedItems then
-            dprint("Starting new drag")
             DragToPlace:Start(getPlayer(), draggedItems, self);
         end
     end

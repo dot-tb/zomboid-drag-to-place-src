@@ -11,24 +11,62 @@ bind.value = dragToPlaceRotateKey;
 bind.key = Keyboard.KEY_LSHIFT;
 table.insert(keyBinding, bind);
 
+local Core = getCore();
+
+--- UI Class to run UI code even when inventory panes are closed.
+---@class CodeRunnerUI : ISPanel
+---@field dragToPlace DelranDragToPlace
+local CodeRunnerUI = ISPanel:derive("CodeRunnerUI")
+
+---@param dragToPlace DelranDragToPlace
+---@return CodeRunnerUI
+function CodeRunnerUI:new(dragToPlace)
+    local o = ISPanel:new(0, 0, 0, 0)
+    setmetatable(o, self)
+    self.__index = self
+    ---@cast o CodeRunnerUI
+    o.dragToPlace = dragToPlace;
+    return o
+end
+
+function CodeRunnerUI:onMouseUpOutside(x, y)
+    if not self.dragToPlace.canceled and DelranUtils.IsMouseOverUI() then
+        self.dragToPlace:Stop();
+    end
+end
+
+function CodeRunnerUI:onMouseMoveOutside(x, y)
+    local isMouseOverUI = DelranUtils.IsMouseOverUI();
+    if self.dragToPlace.hidden and not isMouseOverUI then
+        self.dragToPlace:StartShowCursorTimer();
+    elseif not self.dragToPlace.hidden and isMouseOverUI then
+        self.dragToPlace:HideCursor();
+    end
+end
+
 ---@class DelranDragToPlace
 ---@field player IsoPlayer
+---@field playerInventory ISInventoryPage
 ---@field playerIndex integer
----@field draggedItems ISInventoryPaneDraggedItems
+---@field draggedItems InventoryItem[]
 ---@field actualDraggedItem InventoryItem
 ---@field startedFrom ISInventoryPane
+---@field lootInventoryPage ISInventoryPage
 ---@field placeItemCursor ISPlace3DItemCursor
+---@field codeRunner CodeRunnerUI
 ---@field placingItem boolean
 ---@field hidden boolean
 ---@field canceled boolean
 local DelranDragToPlace = {};
 
 DelranDragToPlace.player = nil;
+DelranDragToPlace.playerInventory = nil;
 DelranDragToPlace.playerIndex = nil;
 DelranDragToPlace.draggedItems = nil;
 DelranDragToPlace.actualDraggedItem = nil;
 DelranDragToPlace.startedFrom = nil;
 DelranDragToPlace.placeItemCursor = nil;
+DelranDragToPlace.codeRunner = nil;
 
 DelranDragToPlace.hidden = true;
 DelranDragToPlace.placingItem = false;
@@ -44,9 +82,41 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.player = player;
     self.startDirection = self.player:getDirectionAngle();
     self.playerIndex = self.player:getIndex();
+    self.playerInventory = getPlayerInventory(self.playerIndex);
+    --[[
+
+    local function deepcopy(o, seen)
+        seen = seen or {}
+        if o == nil then return nil end
+        if seen[o] then return seen[o] end
+
+
+        local no = {}
+        seen[o] = no
+        setmetatable(no, deepcopy(getmetatable(o), seen))
+
+        for k, v in pairs(o) do
+            k = (type(k) == 'table') and k:deepcopy(seen) or k
+            v = (type(v) == 'table') and v:deepcopy(seen) or v
+            no[k] = v
+        end
+        return no
+    end
+ ]]
+
+    --self.draggedItems = deepcopy(draggedItems)
+    --for _, item in ipairs(draggedItems) do
+    --    table.insert(self.draggedItems, item);
+    --end
+
+
+    self.lootInventoryPage = getPlayerLoot(self.playerIndex);
+
     self.draggedItems = draggedItems;
     self.actualDraggedItem = draggedItems[1];
-    self.startingContainer = self.actualDraggedItem:getContainer();
+    ---@type ISInventoryPane
+    local inventoryPane = self.lootInventoryPage.inventoryPane;
+    self.startingContainer = inventoryPane.inventory;
 
     self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems);
     if self.actualDraggedItem:getWorldItem() then
@@ -58,10 +128,30 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
         self:OnPlayerMove(_player);
     end
 
+    function DelranDragToPlace.OnKeyPressed(key)
+        if Core:isKey("Toggle Inventory", key) then
+            --self.playerInventory.inventoryPane:clearWorldObjectHighlights();
+            if not self.playerInventory:getIsVisible() and not self:IsVisible() then
+                self:ShowCursor();
+            end
+        end
+    end
+
+    function DelranDragToPlace.OnMouseUp(x, y)
+        self:PlaceItem();
+    end
+
+    self.codeRunner = CodeRunnerUI:new(self);
+    self.codeRunner:addToUIManager();
+
+    Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
     Events.OnPlayerMove.Add(OnPlayerMoveTemp);
+    Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed);
 end
 
 function DelranDragToPlace:Stop()
+    self.codeRunner:removeFromUIManager();
+    self.codeRunner = nil;
     -- Hide the 3D cursor
     if not self.hidden then
         ---@diagnostic disable-next-line: param-type-mismatch
@@ -69,6 +159,8 @@ function DelranDragToPlace:Stop()
     end
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
+    Events.OnKeyPressed.Remove(DelranDragToPlace.OnKeyPressed);
+    Events.OnMouseUp.Remove(DelranDragToPlace.OnMouseUp);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
 
@@ -104,7 +196,7 @@ function DelranDragToPlace:ShowCursor()
     self.hidden = false;
 
     -- Setting drag back to the cursor so it will show on the world
-    getCell():setDrag(self.placeItemCursor, self.playerIndex)
+    getCell():setDrag(self.placeItemCursor, self.playerIndex);
 end
 
 ---@param resetDirection? boolean
@@ -122,9 +214,9 @@ function DelranDragToPlace:HideCursor(resetDirection)
         self.player:setDirectionAngle(self.startDirection);
 
         if self.player:shouldBeTurning() then
-            lootInventoryPage:setForceSelectedContainer(self.actualDraggedItem:getContainer())
+            lootInventoryPage:setForceSelectedContainer(self.startingContainer)
         end
-        lootInventoryPage:selectButtonForContainer(self.actualDraggedItem:getContainer())
+        lootInventoryPage:selectButtonForContainer(self.startingContainer)
     end
 
     -- Let the ISInventoryPane draw the dragged inventory item
@@ -132,6 +224,7 @@ function DelranDragToPlace:HideCursor(resetDirection)
 end
 
 function DelranDragToPlace:PlaceItem()
+    dprint("placing item")
     if self.canceled then return end
     self:HideCursor(false);
     -- Get the dragged item from the ISInventoryPane
@@ -143,7 +236,7 @@ function DelranDragToPlace:PlaceItem()
     if worldItem then
         local itemSquare = worldItem:getSquare();
         if not tileFinder:IsNextToSquare(itemSquare) then
-            -- If the item is in the world, walk nest to it first
+            -- If the item is in the world, walk next to it first
             pickupSquare = tileFinder:Find(itemSquare);
             -- If there is no free square next to the item, we cannot reach it, abort.
             if pickupSquare == nil then
@@ -251,7 +344,6 @@ end
 function DelranDragToPlace.WaitBeforeShowCursorTimer:Start(owner)
     if self.owner == owner then return end;
     self.owner = owner;
-    self.items = self.owner.draggedItems;
 
     function UpdateDragToPlaceTimer(gameTick)
         self:UpdateTimer(gameTick);
@@ -264,40 +356,48 @@ function DelranDragToPlace.WaitBeforeShowCursorTimer:Reset()
     Events.OnTick.Remove(UpdateDragToPlaceTimer);
     self.ticksElapsed = 0;
     self.owner = nil;
-    self.items = nil;
 end
 
-local DragAndDrop = require("InventoryTetris/System/DragAndDrop");
+function DelranDragToPlace:IsInventoryPaneDragging()
+end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
-    if DelranDragToPlace.placingItem and DelranDragToPlace.startedFrom == self then
+    --[[
+    if DelranDragToPlace.placingItem then
+        if not DelranDragToPlace.startedFrom == self then return end;
+
         local isMouseOverUI = DelranUtils.IsMouseOverUI();
         if DelranDragToPlace.hidden and not isMouseOverUI then
             DelranDragToPlace:StartShowCursorTimer();
         elseif not DelranDragToPlace.hidden and isMouseOverUI then
             DelranDragToPlace:HideCursor();
         end
-    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
-        if not DelranDragToPlace.placingItem then
-            DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
-        end
+    else
+    end
+     ]]
+    if not DelranDragToPlace.placingItem and self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+        DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
-    if DelranDragToPlace.placingItem and DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
-        DelranDragToPlace:HideCursor();
+    if DelranDragToPlace.placingItem then
+        if DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
+            DelranDragToPlace:HideCursor();
+        end
+    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+        DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseUpOutside(dx, dy)
     --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
-    if not DelranDragToPlace.hidden and self == DelranDragToPlace.startedFrom and DelranDragToPlace.placingItem and not DelranUtils.IsMouseOverUI() then
+    --[[     if not DelranDragToPlace.hidden and self == DelranDragToPlace.startedFrom and DelranDragToPlace.placingItem and not DelranUtils.IsMouseOverUI() then
         DelranDragToPlace:PlaceItem();
     else
         ORIGINAL_ISInventoryPane_onMouseUpOutside(self, dx, dy);
@@ -306,6 +406,7 @@ function ISInventoryPane:onMouseUpOutside(dx, dy)
             DelranDragToPlace:Stop();
         end;
     end
+ ]]
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
@@ -331,13 +432,13 @@ function ISInventoryPaneContextMenu.dropItem(item, player)
 end
 
 function DelranDragToPlace:OnMouseDown(x, y)
-    dprint("nullifyAiming")
-    getPlayer():nullifyAiming();
-    getPlayer():setForceAim(false);
-    if self.player then
-    end
-    if self:IsVisible() then
-    end
+    --dprint("nullifyAiming")
+    --getPlayer():nullifyAiming();
+    --getPlayer():setForceAim(false);
+    --if self.player then
+    --end
+    --if self:IsVisible() then
+    --end
 end
 
 local isKeyDown = isKeyDown;
@@ -353,74 +454,32 @@ end
 Events.OnMouseDown.Add(function(x, y)
     DelranDragToPlace:OnMouseDown(x, y);
 end)
+
 Events.OnMouseMove.Add(function(x, y)
 end)
+
 Events.OnRightMouseDown.Add(function(x, y)
     DelranDragToPlace:OnMouseDown(x, y);
 end)
 
-
+--Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed)
+--DelranDragToPlace:OnKeyPressed(key);
+--[[ ORIGINAL_ISPanel_onMouseUpOutside = ORIGINAL_ISPanel_onMouseUpOutside or ISPanel.onMouseUpOutside;
+function ISPanel:onMouseUpOutside(x, y)
+    if DelranDragToPlace.placingItem and not DelranDragToPlace.canceled and DelranUtils.IsMouseOverUI() then
+        DelranDragToPlace:Stop();
+    end
+    ORIGINAL_ISPanel_onMouseUpOutside(self, x, y);
+end
+ ]]
 return DelranDragToPlace
 
 --[[
 Ressources
-
-Mouse.UICaptured
-
 ISInventoryPage.onKeyPressed = function(key)
 	if getCore():isKey("Toggle Inventory", key) and getSpecificPlayer(0) and getGameSpeed() > 0 and getPlayerInventory(0) and getCore():getGameMode() ~= "Tutorial" then
         getPlayerInventory(0):setVisible(not getPlayerInventory(0):getIsVisible());
         getPlayerLoot(0):setVisible(getPlayerInventory(0):getIsVisible());
     end
-end
-
-local bind = {};
-bind.value = "[InventoryTetris]";
-table.insert(keyBinding, bind);
-
-bind = {};
-bind.value = "tetris_rotate_item";
-bind.key = Keyboard.KEY_R;
-table.insert(keyBinding, bind);
-
-bind = {};
-bind.value = "tetris_ctrl_button";
-bind.key = Keyboard.KEY_LCONTROL;
-table.insert(keyBinding, bind);
-
-bind = {};
-bind.value = "tetris_alt_button";
-bind.key = Keyboard.KEY_LMENU;
-table.insert(keyBinding, bind);
-
-bind = {};
-bind.value = "tetris_shift_button";
-bind.key = Keyboard.KEY_LSHIFT;
-table.insert(keyBinding, bind);
-
-bind = {};
-bind.value = "tetris_stack_split";
-bind.key = Keyboard.KEY_LCONTROL;
-table.insert(keyBinding, bind);
-
-bind = {};
-bind.value = "tetris_close_window";
-bind.key = Keyboard.KEY_I;
-table.insert(keyBinding, bind);
-
-local function isCtrlButtonDown()
-    return isKeyDown(Core:getKey("tetris_ctrl_button"))
-end
-
-local function isAltButtonDown()
-    return isKeyDown(Core:getKey("tetris_alt_button"))
-end
-
-local function isShiftButtonDown()
-    return isKeyDown(Core:getKey("tetris_shift_button"))
-end
-
-local function isStackSplitDown()
-    return isKeyDown(Core:getKey("tetris_stack_split"))
 end
 ]]
