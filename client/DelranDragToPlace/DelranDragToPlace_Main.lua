@@ -103,55 +103,6 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
         self:OnPlayerMove(_player);
     end
 
-    function DelranDragToPlace.OnKeyStartPressed(key)
-        if Core:isKey(dragToPlaceRotateKey, key) then
-            --local x = self.placeItemCursor.render3DItemXOffset;
-            --local y = self.placeItemCursor.render3DItemYOffset;
-            --local z = self.placeItemCursor.render3DItemZOffset;
-            local x = nil;
-            local y = nil;
-            local z = self.placeItemCursor.render3DItemRot;
-            local rotation = self.placeItemCursor.render3DItemRot;
-            --local square = self.actualDraggedItem:getSquare();
-            self.rotating = { z = z, rotation = rotation, initialAngle = rotation, startingAngle = nil };
-            function DelranDragToPlace.Rotate3DCursorOnMouseMove(_x, _y)
-                if not self.placingItem then
-                    Events.OnMouseMove.Remove(self.Rotate3DCursorOnMouseMove);
-                    return;
-                end
-                local rx = self.rotating.x;
-                local ry = self.rotating.y;
-                if not rx or not ry then return end;
-                local _z = self.player:getZ();
-                local isoX = screenToIsoX(self.playerIndex, _x, _y, _z);
-                local isoY = screenToIsoY(self.playerIndex, _x, _y, _z);
-
-                local newAngle = math.atan2(isoY - ry, isoX - rx);
-                -- Keep the radians in the positive
-                dprint("Radians : ", newAngle)
-                newAngle = (newAngle + 6.28) % (6.28);
-                dprint("Positive Radians : ", newAngle)
-                -- Convert to degrees
-                newAngle = newAngle * 180 / 3.14;
-                dprint("degrees : ", newAngle)
-                if newAngle < 0 then
-                    --newAngle = newAngle + 360;
-                end
-                if not self.rotating.startingAngle then
-                    if newAngle ~= 0 then
-                        self.rotating.startingAngle = newAngle;
-                    end
-                else
-                    self.rotating.rotation = (self.rotating.initialAngle + (newAngle - self.rotating.startingAngle)) %
-                        360;
-                    --dprint(self.rotating.initialAngle, " + (", newAngle, " - ", self.rotating.startingAngle, ")");
-                end
-            end
-
-            Events.OnMouseMove.Add(DelranDragToPlace.Rotate3DCursorOnMouseMove);
-        end
-    end
-
     function DelranDragToPlace.OnKeyPressed(key)
         if Core:isKey("Toggle Inventory", key) then
             --self.playerInventory.inventoryPane:clearWorldObjectHighlights();
@@ -160,8 +111,48 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
             end
         elseif Core:isKey(dragToPlaceRotateKey, key) then
             --Rotate key released
-            self.rotating = nil;
-            Events.OnMouseMove.Remove(DelranDragToPlace.Rotate3DCursorOnMouseMove);
+            if not self.rotating then
+                local rotation = self.placeItemCursor.render3DItemRot;
+                self.rotating = { rotation = rotation, initialAngle = rotation, startingAngle = nil };
+
+                function DelranDragToPlace.Rotate3DCursorOnMouseMove(x, y)
+                    if not self.placingItem then
+                        self.rotating = nil;
+                        Events.OnMouseMove.Remove(self.Rotate3DCursorOnMouseMove);
+                        return;
+                    end
+                    local rx = self.rotating.x;
+                    local ry = self.rotating.y;
+                    if not rx or not ry then return end;
+                    local z = self.player:getZ();
+                    local isoX = screenToIsoX(self.playerIndex, x, y, self.rotating.z);
+                    local isoY = screenToIsoY(self.playerIndex, x, y, self.rotating.z);
+
+                    local newAngle = math.atan2(isoY - ry, isoX - rx);
+                    -- Keep the radians in the positive
+                    dprint("Radians : ", newAngle)
+                    newAngle = (newAngle + 6.28) % 6.28;
+                    dprint("Positive Radians : ", newAngle)
+                    -- Convert to degrees
+                    newAngle = newAngle * 180 / 3.14;
+                    dprint("degrees : ", newAngle)
+                    if not self.rotating.startingAngle then
+                        if newAngle ~= 0 then
+                            self.rotating.startingAngle = newAngle;
+                        end
+                    else
+                        local delta = (newAngle - self.rotating.startingAngle + 360) % 360;
+                        local finalAngle = self.rotating.initialAngle + delta;
+                        self.rotating.rotation = finalAngle;
+                        self.placeItemCursor.render3DItemRot = finalAngle;
+                    end
+                end
+
+                Events.OnMouseMove.Add(DelranDragToPlace.Rotate3DCursorOnMouseMove);
+            else
+                self.rotating = nil;
+                Events.OnMouseMove.Remove(DelranDragToPlace.Rotate3DCursorOnMouseMove);
+            end
         end
     end
 
@@ -175,7 +166,6 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
     Events.OnPlayerMove.Add(OnPlayerMoveTemp);
     Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed);
-    Events.OnKeyStartPressed.Add(DelranDragToPlace.OnKeyStartPressed);
 end
 
 function DelranDragToPlace:Stop()
@@ -189,7 +179,6 @@ function DelranDragToPlace:Stop()
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
     Events.OnKeyPressed.Remove(DelranDragToPlace.OnKeyPressed);
-    Events.OnKeyStartPressed.Remove(DelranDragToPlace.OnKeyStartPressed);
     Events.OnMouseUp.Remove(DelranDragToPlace.OnMouseUp);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
@@ -452,9 +441,10 @@ function Render3DItem(item, sq, xoffset, yoffset, zoffset, rotation)
     local dtp = DelranDragToPlace;
     if dtp.placingItem and dtp.actualDraggedItem == item and dtp.rotating then
         local rotateData = dtp.rotating;
-        if not rotateData.x or not rotateData.y then
+        if not rotateData.x or not rotateData.y or not rotateData.z then
             rotateData.x = xoffset;
             rotateData.y = yoffset;
+            rotateData.z = zoffset;
         end
         OriginalRender3DItem(item, sq, rotateData.x, rotateData.y, rotateData.z,
             rotateData.rotation);
