@@ -42,6 +42,7 @@ function CodeRunnerUI:onMouseMoveOutside(x, y)
     elseif not self.dragToPlace.hidden and isMouseOverUI then
         self.dragToPlace:HideCursor();
     end
+    --self.dragToPlace:OnMouseMove(x, y);
 end
 
 ---@class DelranDragToPlace
@@ -83,32 +84,6 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.startDirection = self.player:getDirectionAngle();
     self.playerIndex = self.player:getIndex();
     self.playerInventory = getPlayerInventory(self.playerIndex);
-    --[[
-
-    local function deepcopy(o, seen)
-        seen = seen or {}
-        if o == nil then return nil end
-        if seen[o] then return seen[o] end
-
-
-        local no = {}
-        seen[o] = no
-        setmetatable(no, deepcopy(getmetatable(o), seen))
-
-        for k, v in pairs(o) do
-            k = (type(k) == 'table') and k:deepcopy(seen) or k
-            v = (type(v) == 'table') and v:deepcopy(seen) or v
-            no[k] = v
-        end
-        return no
-    end
- ]]
-
-    --self.draggedItems = deepcopy(draggedItems)
-    --for _, item in ipairs(draggedItems) do
-    --    table.insert(self.draggedItems, item);
-    --end
-
 
     self.lootInventoryPage = getPlayerLoot(self.playerIndex);
 
@@ -128,12 +103,65 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
         self:OnPlayerMove(_player);
     end
 
+    function DelranDragToPlace.OnKeyStartPressed(key)
+        if Core:isKey(dragToPlaceRotateKey, key) then
+            --local x = self.placeItemCursor.render3DItemXOffset;
+            --local y = self.placeItemCursor.render3DItemYOffset;
+            --local z = self.placeItemCursor.render3DItemZOffset;
+            local x = nil;
+            local y = nil;
+            local z = self.placeItemCursor.render3DItemRot;
+            local rotation = self.placeItemCursor.render3DItemRot;
+            --local square = self.actualDraggedItem:getSquare();
+            self.rotating = { z = z, rotation = rotation, initialAngle = rotation, startingAngle = nil };
+            function DelranDragToPlace.Rotate3DCursorOnMouseMove(_x, _y)
+                if not self.placingItem then
+                    Events.OnMouseMove.Remove(self.Rotate3DCursorOnMouseMove);
+                    return;
+                end
+                local rx = self.rotating.x;
+                local ry = self.rotating.y;
+                if not rx or not ry then return end;
+                local _z = self.player:getZ();
+                local isoX = screenToIsoX(self.playerIndex, _x, _y, _z);
+                local isoY = screenToIsoY(self.playerIndex, _x, _y, _z);
+
+                local newAngle = math.atan2(isoY - ry, isoX - rx);
+                -- Keep the radians in the positive
+                dprint("Radians : ", newAngle)
+                newAngle = (newAngle + 6.28) % (6.28);
+                dprint("Positive Radians : ", newAngle)
+                -- Convert to degrees
+                newAngle = newAngle * 180 / 3.14;
+                dprint("degrees : ", newAngle)
+                if newAngle < 0 then
+                    --newAngle = newAngle + 360;
+                end
+                if not self.rotating.startingAngle then
+                    if newAngle ~= 0 then
+                        self.rotating.startingAngle = newAngle;
+                    end
+                else
+                    self.rotating.rotation = (self.rotating.initialAngle + (newAngle - self.rotating.startingAngle)) %
+                        360;
+                    --dprint(self.rotating.initialAngle, " + (", newAngle, " - ", self.rotating.startingAngle, ")");
+                end
+            end
+
+            Events.OnMouseMove.Add(DelranDragToPlace.Rotate3DCursorOnMouseMove);
+        end
+    end
+
     function DelranDragToPlace.OnKeyPressed(key)
         if Core:isKey("Toggle Inventory", key) then
             --self.playerInventory.inventoryPane:clearWorldObjectHighlights();
             if not self.playerInventory:getIsVisible() and not self:IsVisible() then
                 self:ShowCursor();
             end
+        elseif Core:isKey(dragToPlaceRotateKey, key) then
+            --Rotate key released
+            self.rotating = nil;
+            Events.OnMouseMove.Remove(DelranDragToPlace.Rotate3DCursorOnMouseMove);
         end
     end
 
@@ -147,6 +175,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
     Events.OnPlayerMove.Add(OnPlayerMoveTemp);
     Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed);
+    Events.OnKeyStartPressed.Add(DelranDragToPlace.OnKeyStartPressed);
 end
 
 function DelranDragToPlace:Stop()
@@ -160,6 +189,7 @@ function DelranDragToPlace:Stop()
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
     Events.OnKeyPressed.Remove(DelranDragToPlace.OnKeyPressed);
+    Events.OnKeyStartPressed.Remove(DelranDragToPlace.OnKeyStartPressed);
     Events.OnMouseUp.Remove(DelranDragToPlace.OnMouseUp);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
@@ -224,7 +254,6 @@ function DelranDragToPlace:HideCursor(resetDirection)
 end
 
 function DelranDragToPlace:PlaceItem()
-    dprint("placing item")
     if self.canceled then return end
     self:HideCursor(false);
     -- Get the dragged item from the ISInventoryPane
@@ -364,19 +393,6 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
-    --[[
-    if DelranDragToPlace.placingItem then
-        if not DelranDragToPlace.startedFrom == self then return end;
-
-        local isMouseOverUI = DelranUtils.IsMouseOverUI();
-        if DelranDragToPlace.hidden and not isMouseOverUI then
-            DelranDragToPlace:StartShowCursorTimer();
-        elseif not DelranDragToPlace.hidden and isMouseOverUI then
-            DelranDragToPlace:HideCursor();
-        end
-    else
-    end
-     ]]
     if not DelranDragToPlace.placingItem and self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
@@ -392,21 +408,6 @@ function ISInventoryPane:onMouseMove(dx, dy)
     elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
-end
-
----@diagnostic disable-next-line: duplicate-set-field
-function ISInventoryPane:onMouseUpOutside(dx, dy)
-    --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
-    --[[     if not DelranDragToPlace.hidden and self == DelranDragToPlace.startedFrom and DelranDragToPlace.placingItem and not DelranUtils.IsMouseOverUI() then
-        DelranDragToPlace:PlaceItem();
-    else
-        ORIGINAL_ISInventoryPane_onMouseUpOutside(self, dx, dy);
-        if DelranDragToPlace.placingItem and self == DelranDragToPlace.startedFrom then
-            self.dragging = nil;
-            DelranDragToPlace:Stop();
-        end;
-    end
- ]]
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
@@ -431,55 +432,35 @@ function ISInventoryPaneContextMenu.dropItem(item, player)
     ORIGINAL_ISUnequip_new(item, player);
 end
 
-function DelranDragToPlace:OnMouseDown(x, y)
-    --dprint("nullifyAiming")
-    --getPlayer():nullifyAiming();
-    --getPlayer():setForceAim(false);
-    --if self.player then
-    --end
-    --if self:IsVisible() then
-    --end
-end
-
 local isKeyDown = isKeyDown;
----@param dragToPlace DelranDragToPlace
-function DelranDragToPlace.OnMouseMove(dragToPlace, x, y)
-    if dragToPlace:IsVisible() and isKeyDown(Core:getKey(dragToPlaceRotateKey)) then
-        local z = dragToPlace.player:getZ();
-        local isoX = screenToIsoX(dragToPlace.playerIndex, x, y, z);
-        local isoY = screenToIsoY(dragToPlace.playerIndex, x, y, z);
+function DelranDragToPlace:OnMouseMove(x, y)
+    if not self.hidden and isKeyDown(Core:getKey(dragToPlaceRotateKey)) then
+        local z = self.player:getZ();
+        local isoX = screenToIsoX(self.playerIndex, x, y, z);
+        local isoY = screenToIsoY(self.playerIndex, x, y, z);
     end
 end
 
-Events.OnMouseDown.Add(function(x, y)
-    DelranDragToPlace:OnMouseDown(x, y);
-end)
-
-Events.OnMouseMove.Add(function(x, y)
-end)
-
-Events.OnRightMouseDown.Add(function(x, y)
-    DelranDragToPlace:OnMouseDown(x, y);
-end)
-
---Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed)
---DelranDragToPlace:OnKeyPressed(key);
---[[ ORIGINAL_ISPanel_onMouseUpOutside = ORIGINAL_ISPanel_onMouseUpOutside or ISPanel.onMouseUpOutside;
-function ISPanel:onMouseUpOutside(x, y)
-    if DelranDragToPlace.placingItem and not DelranDragToPlace.canceled and DelranUtils.IsMouseOverUI() then
-        DelranDragToPlace:Stop();
+local OriginalRender3DItem = Render3DItem;
+---@param item InventoryItem
+---@param sq IsoGridSquare
+---@param xoffset number
+---@param yoffset number
+---@param zoffset number
+---@param rotation number
+function Render3DItem(item, sq, xoffset, yoffset, zoffset, rotation)
+    local dtp = DelranDragToPlace;
+    if dtp.placingItem and dtp.actualDraggedItem == item and dtp.rotating then
+        local rotateData = dtp.rotating;
+        if not rotateData.x or not rotateData.y then
+            rotateData.x = xoffset;
+            rotateData.y = yoffset;
+        end
+        OriginalRender3DItem(item, sq, rotateData.x, rotateData.y, rotateData.z,
+            rotateData.rotation);
+        return;
     end
-    ORIGINAL_ISPanel_onMouseUpOutside(self, x, y);
+    OriginalRender3DItem(item, sq, xoffset, yoffset, zoffset, rotation);
 end
- ]]
+
 return DelranDragToPlace
-
---[[
-Ressources
-ISInventoryPage.onKeyPressed = function(key)
-	if getCore():isKey("Toggle Inventory", key) and getSpecificPlayer(0) and getGameSpeed() > 0 and getPlayerInventory(0) and getCore():getGameMode() ~= "Tutorial" then
-        getPlayerInventory(0):setVisible(not getPlayerInventory(0):getIsVisible());
-        getPlayerLoot(0):setVisible(getPlayerInventory(0):getIsVisible());
-    end
-end
-]]
