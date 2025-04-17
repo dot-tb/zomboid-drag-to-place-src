@@ -40,7 +40,7 @@ end
 local original_isvalid = ISPlace3DItemCursor.isValid;
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISPlace3DItemCursor:isValid(square)
-    if DragToPlace.placingItem then return true end;
+    if not DragToPlace.options["DTPFaceItemTickBox"] and DragToPlace.placingItem then return true end
     return original_isvalid(self, square);
 end
 

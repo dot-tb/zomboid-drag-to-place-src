@@ -75,6 +75,8 @@ DelranDragToPlace.hidden = true;
 DelranDragToPlace.placingItem = false;
 DelranDragToPlace.canceled = false;
 
+DelranDragToPlace.options = require("DelranDragToPlace/DelranDragToPlace_ModOptions");
+
 ---@param player IsoPlayer
 ---@param draggedItems InventoryItem[]
 ---@param startedFrom ISInventoryPane
@@ -430,15 +432,6 @@ function ISInventoryPaneContextMenu.dropItem(item, player)
         end
     end
     ORIGINAL_ISUnequip_new(item, player);
-end
-
-local isKeyDown = isKeyDown;
-function DelranDragToPlace:OnMouseMove(x, y)
-    if not self.hidden and isKeyDown(Core:getKey(dragToPlaceRotateKey)) then
-        local z = self.player:getZ();
-        local isoX = screenToIsoX(self.playerIndex, x, y, z);
-        local isoY = screenToIsoY(self.playerIndex, x, y, z);
-    end
 end
 
 OG_RENDER_3D_ITEM = OG_RENDER_3D_ITEM or Render3DItem;
