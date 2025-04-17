@@ -58,6 +58,8 @@ end
 ---@field placingItem boolean
 ---@field hidden boolean
 ---@field canceled boolean
+---Probably should make a class out of that, and switch the object to have multiple modes
+---@field rotating {square: IsoGridSquare, rotation: number, initialAngle: number, startingAngle: number|nil, x: number|nil , y: number|nil, z: number|nil}
 local DelranDragToPlace = {};
 
 DelranDragToPlace.player = nil;
@@ -284,7 +286,7 @@ function DelranDragToPlace:PlaceItem()
     if self.player:isEquipped(draggedItem) then
         ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
     end
-    --self.player:faceDirection();
+
     local x = 0;
     local y = 0;
 
@@ -296,9 +298,7 @@ function DelranDragToPlace:PlaceItem()
         self.placeItemCursor.render3DItemZOffset = self.rotating.z;
         self.placeItemCursor.render3DItemRot = self.rotating.rotation;
     else
-        ---@diagnostic disable-next-line: param-type-mismatch
         x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
-        ---@diagnostic disable-next-line: param-type-mismatch
         y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
     end
 
@@ -441,7 +441,7 @@ function DelranDragToPlace:OnMouseMove(x, y)
     end
 end
 
-local OG_RENDER_3D_ITEM = OG_RENDER_3D_ITEM or Render3DItem;
+OG_RENDER_3D_ITEM = OG_RENDER_3D_ITEM or Render3DItem;
 ---@param item InventoryItem
 ---@param sq IsoGridSquare
 ---@param xoffset number
