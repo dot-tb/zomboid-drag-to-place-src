@@ -44,6 +44,17 @@ function ISPlace3DItemCursor:isValid(square)
     return original_isvalid(self, square);
 end
 
+OG_CURSOR_RENDER = OG_CURSOR_RENDER or ISPlace3DItemCursor.render;
+---@diagnostic disable-next-line: duplicate-set-field
+function ISPlace3DItemCursor:render(x, y, z, square)
+    if DragToPlace.placingItem and DragToPlace.rotating then
+        local rt = DragToPlace.rotating
+        OG_CURSOR_RENDER(self, rt.x, rt.y, rt.z, rt.square);
+    else
+        OG_CURSOR_RENDER(self, x, y, z, square);
+    end
+end
+
 --[[
 Ressources
 ISInventoryPage.onKeyPressed = function(key)

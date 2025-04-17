@@ -113,7 +113,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
             --Rotate key released
             if not self.rotating then
                 local rotation = self.placeItemCursor.render3DItemRot;
-                self.rotating = { rotation = rotation, initialAngle = rotation, startingAngle = nil };
+                self.rotating = { square = self.placeItemCursor.square, rotation = rotation, initialAngle = rotation, startingAngle = nil };
 
                 function DelranDragToPlace.Rotate3DCursorOnMouseMove(x, y)
                     if not self.placingItem then
@@ -270,7 +270,7 @@ function DelranDragToPlace:PlaceItem()
     tileFinder = TileFinder:BuildForSquare(pickupSquare);
     -- Walk to the square where we want to drop the item
     ---@type IsoGridSquare
-    local dropSquare = self.placeItemCursor.selectedSqDrop;
+    local dropSquare = self.rotating and self.rotating.square or self.placeItemCursor.selectedSqDrop;
     if not tileFinder:IsNextToSquare(dropSquare) then
         local freeSquare = tileFinder:Find(dropSquare);
         if freeSquare == nil then
@@ -285,13 +285,24 @@ function DelranDragToPlace:PlaceItem()
         ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
     end
     --self.player:faceDirection();
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+    local x = 0;
+    local y = 0;
+
+    if self.rotating then
+        x = self.rotating.x;
+        y = self.rotating.y;
+        self.placeItemCursor.render3DItemXOffset = x - dropSquare:getX();
+        self.placeItemCursor.render3DItemYOffset = y - dropSquare:getY();
+        self.placeItemCursor.render3DItemZOffset = self.rotating.z;
+        self.placeItemCursor.render3DItemRot = self.rotating.rotation;
+    else
+        ---@diagnostic disable-next-line: param-type-mismatch
+        x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+        ---@diagnostic disable-next-line: param-type-mismatch
+        y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+    end
 
     ISTimedActionQueue.add(FaceCoordinatesAction:new(self.player, x, y));
-
     -- Finaly, drop the item at the position and rotation of the cursor.
     ISTimedActionQueue.add(ISDropWorldItemAction:new(self.player, draggedItem, dropSquare,
         self.placeItemCursor.render3DItemXOffset, self.placeItemCursor.render3DItemYOffset,
@@ -430,7 +441,7 @@ function DelranDragToPlace:OnMouseMove(x, y)
     end
 end
 
-local OriginalRender3DItem = Render3DItem;
+local OG_RENDER_3D_ITEM = OG_RENDER_3D_ITEM or Render3DItem;
 ---@param item InventoryItem
 ---@param sq IsoGridSquare
 ---@param xoffset number
@@ -446,11 +457,11 @@ function Render3DItem(item, sq, xoffset, yoffset, zoffset, rotation)
             rotateData.y = yoffset;
             rotateData.z = zoffset;
         end
-        OriginalRender3DItem(item, sq, rotateData.x, rotateData.y, rotateData.z,
+        OG_RENDER_3D_ITEM(item, sq, rotateData.x, rotateData.y, rotateData.z,
             rotateData.rotation);
         return;
     end
-    OriginalRender3DItem(item, sq, xoffset, yoffset, zoffset, rotation);
+    OG_RENDER_3D_ITEM(item, sq, xoffset, yoffset, zoffset, rotation);
 end
 
 return DelranDragToPlace
