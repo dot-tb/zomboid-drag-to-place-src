@@ -113,8 +113,8 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
             if not self.playerInventory:getIsVisible() and not self:IsVisible() then
                 self:ShowCursor();
             end
-        elseif Core:isKey(dragToPlaceRotateKey, key) then
-            --Rotate key released
+        elseif self.options.useShiftForRotateMode and Core:isKey(dragToPlaceRotateKey, key) then
+            --Rotate key pressed
             if not self.rotating then
                 local rotation = self.placeItemCursor.render3DItemRot;
                 self.rotating = { square = self.placeItemCursor.square, rotation = rotation, initialAngle = rotation, startingAngle = nil };

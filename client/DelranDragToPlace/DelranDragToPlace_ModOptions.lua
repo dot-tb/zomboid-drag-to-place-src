@@ -9,9 +9,16 @@ dragToPlaceOptions:addDescription("This is the mod options for the Drag To Place
 
 dragToPlaceOptions:addSeparator()
 dragToPlaceOptions:addDescription("Should the player follow the item while placing it (In vanilla, this would be true).")
-dragToPlaceOptions:addTickBox("DTPFaceItemTickBox", "Face item while placing", false)
+dragToPlaceOptions:addTickBox("faceItemWhilePlacing", "Face item while placing", false)
 
----@type {["DTPFaceItemTickBox"]: boolean}
+dragToPlaceOptions:addSeparator()
+dragToPlaceOptions:addDescription(
+    "Enable rotate mode when pressing shif key, placed item will be locked in place and can be rotated using the mouse.")
+dragToPlaceOptions:addTickBox("useShiftForRotateMode", "Shift key to rotate", true)
+
+---@class DragToPlaceOptions
+---@field faceItemWhilePlacing boolean
+---@field useShiftForRotateMode boolean
 local DragToPlaceOptions = {}
 
 dragToPlaceOptions.apply = utils.ExtractModOptions(DragToPlaceOptions);
