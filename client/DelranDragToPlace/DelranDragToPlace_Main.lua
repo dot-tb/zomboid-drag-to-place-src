@@ -3,14 +3,6 @@ local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
 
 local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
-local keyBinding = keyBinding;
-local Keyboard = Keyboard;
-local dragToPlaceRotateKey = "drag_to_place_left_rotate_key";
-local bind = {};
-bind.value = dragToPlaceRotateKey;
-bind.key = Keyboard.KEY_LSHIFT;
-table.insert(keyBinding, bind);
-
 local Core = getCore();
 
 --- UI Class to run UI code even when inventory panes are closed.
@@ -113,7 +105,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
             if not self.playerInventory:getIsVisible() and not self:IsVisible() then
                 self:ShowCursor();
             end
-        elseif self.options.useShiftForRotateMode and Core:isKey(dragToPlaceRotateKey, key) then
+        elseif self.options.useShiftForRotateMode and key == self.options.rotateModeEnableKey then
             --Rotate key pressed
             if not self.rotating then
                 local rotation = self.placeItemCursor.render3DItemRot;
@@ -134,12 +126,9 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
 
                     local newAngle = math.atan2(isoY - ry, isoX - rx);
                     -- Keep the radians in the positive
-                    dprint("Radians : ", newAngle)
                     newAngle = (newAngle + 6.28) % 6.28;
-                    dprint("Positive Radians : ", newAngle)
                     -- Convert to degrees
                     newAngle = newAngle * 180 / 3.14;
-                    dprint("degrees : ", newAngle)
                     if not self.rotating.startingAngle then
                         if newAngle ~= 0 then
                             self.rotating.startingAngle = newAngle;

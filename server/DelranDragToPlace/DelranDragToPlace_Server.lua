@@ -55,6 +55,13 @@ function ISPlace3DItemCursor:render(x, y, z, square)
     end
 end
 
+OG_CHECK_ROTATE_KEY = OG_CHECK_ROTATE_KEY or ISPlace3DItemCursor.checkRotateKey;
+---@diagnostic disable-next-line: duplicate-set-field
+function ISPlace3DItemCursor:checkRotateKey()
+    if not DragToPlace.options.faceItemWhilePlacing and DragToPlace.placingItem then return end
+    OG_CHECK_ROTATE_KEY(self);
+end
+
 --[[
 Ressources
 ISInventoryPage.onKeyPressed = function(key)
