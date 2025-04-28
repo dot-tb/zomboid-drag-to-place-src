@@ -8,11 +8,13 @@ local dprint = DelranUtils.GetDebugPrint("[DRAG TO PLACE, TETRIS PATCH]")
 local DragAndDrop = require("InventoryTetris/System/DragAndDrop");
 local DragItemRenderer = require("InventoryTetris/UI/TetrisDragItemRenderer");
 
----@return InventoryItem[]
+local UICodeRunner = require("DelranDragToPlace/DelranDragToPlace_UICodeRunner")
+
+---@return InventoryItem[] | nil
 local function getItemFromDragAndDrop()
     ---@type ISInventoryPaneDraggedItems
     local vanillaStack = DragAndDrop.getDraggedStacks();
-    if not vanillaStack then return end;
+    if not vanillaStack then return nil end;
 
     local draggedItems = nil;
     if vanillaStack.items then
@@ -44,7 +46,29 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
     --ORIGINAL_ISInventoryPane_onMouseMoveOutside(self);
     if not DragToPlace.placingItem and DragAndDrop:isDragging() then
         local draggedItems = getItemFromDragAndDrop();
+        if not draggedItems then return end;
         DragToPlace:Start(getPlayer(), draggedItems, self);
+    end
+end
+
+local GridContainerInfo = require("InventoryTetris/UI/Container/GridContainerInfo");
+
+ORIGINAL_UICodeRunner_onMouseUpOutside = ORIGINAL_UICodeRunner_onMouseUpOutside or UICodeRunner.onMouseUpOutside;
+function UICodeRunner:onMouseUpOutside(x, y)
+    local playerNum = self.dragToPlace.playerIndex;
+    ORIGINAL_UICodeRunner_onMouseUpOutside(self);
+    if not self.dragToPlace.playerInventory:isVisible() then
+        --- Canceling InventoryTetris drag and dropping the dragged item.
+        DragAndDrop.ownersForCancel[ISMouseDrag.dragOwner] = {
+            callback = function()
+                local stack = DragAndDrop.getDraggedStack();
+                if not stack or not stack.items then return end;
+
+                local item = stack.items[1];
+                if not item then return end;
+                ISInventoryPaneContextMenu.dropItem(item, playerNum);
+            end
+        }
     end
 end
 

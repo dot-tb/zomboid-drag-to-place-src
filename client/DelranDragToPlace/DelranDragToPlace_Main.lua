@@ -5,40 +5,7 @@ local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
 local Core = getCore();
 
---- UI Class to run UI code even when inventory panes are closed.
----@class CodeRunnerUI : ISPanel
----@field dragToPlace DelranDragToPlace
-local CodeRunnerUI = ISPanel:derive("CodeRunnerUI")
-
----@param dragToPlace DelranDragToPlace
----@return CodeRunnerUI
-function CodeRunnerUI:new(dragToPlace)
-    local o = ISPanel:new(0, 0, 0, 0)
-    setmetatable(o, self)
-    self.__index = self
-    ---@cast o CodeRunnerUI
-    o.dragToPlace = dragToPlace;
-    return o
-end
-
-function CodeRunnerUI:onMouseUpOutside(x, y)
-    if self.dragToPlace.canceled then return end;
-    if not self.dragToPlace.canceled and DelranUtils.IsMouseOverUI() then
-        self.dragToPlace:Stop();
-    else
-        self.dragToPlace:PlaceItem();
-    end
-end
-
-function CodeRunnerUI:onMouseMoveOutside(x, y)
-    local isMouseOverUI = DelranUtils.IsMouseOverUI();
-    if self.dragToPlace.hidden and not isMouseOverUI then
-        self.dragToPlace:StartShowCursorTimer();
-    elseif not self.dragToPlace.hidden and isMouseOverUI then
-        self.dragToPlace:HideCursor();
-    end
-    --self.dragToPlace:OnMouseMove(x, y);
-end
+local UICodeRunner = require("DelranDragToPlace/DelranDragToPlace_UICodeRunner")
 
 ---@class DelranDragToPlace
 ---@field player IsoPlayer
@@ -49,7 +16,7 @@ end
 ---@field startedFrom ISInventoryPane
 ---@field lootInventoryPage ISInventoryPage
 ---@field placeItemCursor ISPlace3DItemCursor
----@field codeRunner CodeRunnerUI
+---@field codeRunner UICodeRunner
 ---@field placingItem boolean
 ---@field hidden boolean
 ---@field canceled boolean
@@ -81,7 +48,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
 
     self.player = player;
     self.startDirection = self.player:getDirectionAngle();
-    self.playerIndex = self.player:getIndex();
+    self.playerIndex = self.player:getPlayerNum();
     self.playerInventory = getPlayerInventory(self.playerIndex);
 
     self.lootInventoryPage = getPlayerLoot(self.playerIndex);
@@ -103,6 +70,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     end
 
     function DelranDragToPlace.OnKeyPressed(key)
+        if self.canceled then return end;
         if Core:isKey("Toggle Inventory", key) then
             --self.playerInventory.inventoryPane:clearWorldObjectHighlights();
             if not self.playerInventory:getIsVisible() and not self:IsVisible() then
@@ -152,14 +120,14 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
         end
     end
 
-    -- Moved to CodeRunnerUI
+    -- Moved to UICodeRunner
     --[[
     function DelranDragToPlace.OnMouseUp(x, y)
         self:PlaceItem();
     end
     ]]
 
-    self.codeRunner = CodeRunnerUI:new(self);
+    self.codeRunner = UICodeRunner:new(self);
     self.codeRunner:addToUIManager();
 
     --Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
@@ -382,9 +350,6 @@ function DelranDragToPlace.WaitBeforeShowCursorTimer:Reset()
     Events.OnTick.Remove(UpdateDragToPlaceTimer);
     self.ticksElapsed = 0;
     self.owner = nil;
-end
-
-function DelranDragToPlace:IsInventoryPaneDragging()
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
