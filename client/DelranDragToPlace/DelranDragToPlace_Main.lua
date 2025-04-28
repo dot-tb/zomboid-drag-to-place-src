@@ -22,8 +22,11 @@ function CodeRunnerUI:new(dragToPlace)
 end
 
 function CodeRunnerUI:onMouseUpOutside(x, y)
+    if self.dragToPlace.canceled then return end;
     if not self.dragToPlace.canceled and DelranUtils.IsMouseOverUI() then
         self.dragToPlace:Stop();
+    else
+        self.dragToPlace:PlaceItem();
     end
 end
 
@@ -149,14 +152,17 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
         end
     end
 
+    -- Moved to CodeRunnerUI
+    --[[
     function DelranDragToPlace.OnMouseUp(x, y)
         self:PlaceItem();
     end
+    ]]
 
     self.codeRunner = CodeRunnerUI:new(self);
     self.codeRunner:addToUIManager();
 
-    Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
+    --Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
     Events.OnPlayerMove.Add(OnPlayerMoveTemp);
     Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed);
 end
@@ -172,7 +178,7 @@ function DelranDragToPlace:Stop()
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
     Events.OnKeyPressed.Remove(DelranDragToPlace.OnKeyPressed);
-    Events.OnMouseUp.Remove(DelranDragToPlace.OnMouseUp);
+    --Events.OnMouseUp.Remove(DelranDragToPlace.OnMouseUp);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
 

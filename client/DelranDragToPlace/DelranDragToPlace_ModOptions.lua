@@ -14,11 +14,11 @@ dragToPlaceOptions:addTickBox("faceItemWhilePlacing", "Face item while placing",
 dragToPlaceOptions:addSeparator();
 dragToPlaceOptions:addDescription(
     "Enable rotate mode when pressing shif key, placed item will be locked in place and can be rotated using the mouse.");
-dragToPlaceOptions:addTickBox("useShiftForRotateMode", "Shift key to rotate", true);
+dragToPlaceOptions:addTickBox("useShiftForRotateMode", "Enable rotate mode", true);
 
 dragToPlaceOptions:addSeparator();
 dragToPlaceOptions:addDescription("The key that needs to be pressed to enter rotate mode");
-dragToPlaceOptions:addKeyBind("rotateModeEnableKey", "Shift key to rotate", keyboard.KEY_R);
+dragToPlaceOptions:addKeyBind("rotateModeEnableKey", "Rotate mode key", keyboard.KEY_R);
 
 ---@class DragToPlaceOptions
 ---@field faceItemWhilePlacing boolean
