@@ -136,6 +136,9 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
 end
 
 function DelranDragToPlace:Stop()
+    -- Guard against multiple calls, should look into a better solution.
+    -- UICodeRunner will call stop every mouse up while placing an item
+    if not self.placingItem then return end;
     self.codeRunner:removeFromUIManager();
     self.codeRunner = nil;
     -- Hide the 3D cursor

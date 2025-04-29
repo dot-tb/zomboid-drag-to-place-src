@@ -20,9 +20,9 @@ local function getItemFromDragAndDrop()
     if vanillaStack.items then
         -- Handle drag and drop from EquipmentUI
         draggedItems = vanillaStack.items;
-    elseif vanillaStack[1] then
-        draggedItems = { vanillaStack[1].items[1] };
+    elseif vanillaStack[1] and not vanillaStack[2] then
         -- Handle drag and drop from ItemGridUI
+        draggedItems = { vanillaStack[1].items[1] };
     end
     return draggedItems;
 end
@@ -50,8 +50,6 @@ function ISInventoryPane:onMouseMoveOutside(dx, dy)
         DragToPlace:Start(getPlayer(), draggedItems, self);
     end
 end
-
-local GridContainerInfo = require("InventoryTetris/UI/Container/GridContainerInfo");
 
 ORIGINAL_UICodeRunner_onMouseUpOutside = ORIGINAL_UICodeRunner_onMouseUpOutside or UICodeRunner.onMouseUpOutside;
 function UICodeRunner:onMouseUpOutside(x, y)
