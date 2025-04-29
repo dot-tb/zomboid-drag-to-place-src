@@ -8,33 +8,25 @@ if not ORIGINAL_ISObjectClickHandler_doRClick then
 end
 ---@diagnostic disable-next-line: duplicate-set-field
 ISObjectClickHandler.doRClick = function(object, x, y)
-    if DragToPlace.placingItem then
-        DragToPlace:Cancel();
+    if DragToPlace:IsVisible() then
+        DragToPlace:ToggleUICollapse();
     else
         ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
     end
-    --[[
-    if instanceof(object, "IsoObject") then
-        --sq = object:getCurrentSquare();
-        ---@type IsoObject
-        local isoObject = object;
-        dprint(isoObject);
-        local square = isoObject:getSquare();
-        local objects = square:getWorldObjects();
-        for i = 0, objects:size() - 1, 1 do
-            ---@type IsoWorldInventoryObject
-            local worldObect = objects:get(i);
-            if instanceof(worldObect, "IsoWorldInventoryObject") then
-                dprint(worldObect:getSprite());
-                dprint(worldObect:getWorldPosX())
-                dprint(worldObect:getWorldPosY())
-                ---dprint(worldObect:getWorldPosZ())
-                dprint(screenToIsoX(getPlayer():getIndex(), x, y, getPlayer():getZ()));
-                dprint(screenToIsoY(getPlayer():getIndex(), x, y, getPlayer():getZ()));
-            end
-        end
+end
+
+
+
+if not ORIGINAL_ISObjectClickHandler_doRDoubleClick then
+    ORIGINAL_ISObjectClickHandler_doRDoubleClick = ISObjectClickHandler.doRDoubleClick;
+end
+---@diagnostic disable-next-line: duplicate-set-field
+ISObjectClickHandler.doRDoubleClick = function(object, x, y)
+    if DragToPlace.placingItem then
+        DragToPlace:Cancel();
+    else
+        ORIGINAL_ISObjectClickHandler_doRDoubleClick(object, x, y);
     end
-    ]]
 end
 
 local original_isvalid = ISPlace3DItemCursor.isValid;

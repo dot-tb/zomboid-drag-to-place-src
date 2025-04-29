@@ -20,6 +20,8 @@ local UICodeRunner = require("DelranDragToPlace/DelranDragToPlace_UICodeRunner")
 ---@field placingItem boolean
 ---@field hidden boolean
 ---@field canceled boolean
+---@field uiCollapsed boolean
+---@field isMouseDraggingData any
 ---Probably should make a class out of that, and switch the object to have multiple modes
 ---@field rotating {square: IsoGridSquare, rotation: number, initialAngle: number, startingAngle: number|nil, x: number|nil , y: number|nil, z: number|nil}
 local DelranDragToPlace = {};
@@ -44,6 +46,8 @@ DelranDragToPlace.options = require("DelranDragToPlace/DelranDragToPlace_ModOpti
 ---@param startedFrom ISInventoryPane
 function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.placingItem = true;
+    self.uiCollapsed = false;
+    self.isMouseDraggingData = nil;
     self.startedFrom = startedFrom;
 
     self.player = player;
@@ -135,6 +139,45 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed);
 end
 
+function DelranDragToPlace:CollapseUI()
+    if self.uiCollapsed then
+        return;
+    end
+    self.uiCollapsed = true;
+    if ISMouseDrag.dragging then
+        DelranDragToPlace.isMouseDraggingData = ISMouseDrag.dragging;
+        ISMouseDrag.dragging = nil;
+    end
+    self.playerInventory.isCollapsed = true;
+    self.playerInventory:setMaxDrawHeight(self.playerInventory:titleBarHeight());
+    self.lootInventoryPage.isCollapsed = true;
+    self.lootInventoryPage:setMaxDrawHeight(self.lootInventoryPage:titleBarHeight());
+end
+
+function DelranDragToPlace:RevealUI()
+    if not self.uiCollapsed then
+        return;
+    end
+    self.uiCollapsed = false;
+    self.playerInventory.isCollapsed = false;
+    self.playerInventory:clearMaxDrawHeight();
+    self.lootInventoryPage.isCollapsed = false;
+    self.lootInventoryPage:clearMaxDrawHeight();
+
+    if DelranDragToPlace.isMouseDraggingData then
+        ISMouseDrag.dragging = DelranDragToPlace.isMouseDraggingData;
+        DelranDragToPlace.isMouseDraggingData = nil;
+    end
+end
+
+function DelranDragToPlace:ToggleUICollapse()
+    if self.uiCollapsed then
+        self:RevealUI();
+    else
+        self:CollapseUI();
+    end
+end
+
 function DelranDragToPlace:Stop()
     -- Guard against multiple calls, should look into a better solution.
     -- UICodeRunner will call stop every mouse up while placing an item
@@ -168,6 +211,7 @@ end
 
 ---Force DragToPlace to cancel without stopping the UI drag
 function DelranDragToPlace:Cancel()
+    self:RevealUI();
     self:HideCursor();
     self.canceled = true;
 end
@@ -214,6 +258,9 @@ end
 
 function DelranDragToPlace:PlaceItem()
     if self.canceled then return end
+    if not ISMouseDrag.dragging then
+        ISMouseDrag.dragging = DelranDragToPlace.isMouseDraggingData;
+    end
     self:HideCursor(false);
     -- Get the dragged item from the ISInventoryPane
     -- There should only be one as we don't start the drag if there is more than one dragged item
@@ -304,9 +351,6 @@ end
 if not ORIGINAL_ISInventoryPane_onMouseMove then
     ORIGINAL_ISInventoryPane_onMouseMove = ISInventoryPane.onMouseMove;
 end
-if not ORIGINAL_ISInventoryPane_onMouseUpOutside then
-    ORIGINAL_ISInventoryPane_onMouseUpOutside = ISInventoryPane.onMouseUpOutside;
-end
 if not ORIGINAL_ISInventoryPane_onMouseUp then
     ORIGINAL_ISInventoryPane_onMouseUp = ISInventoryPane.onMouseUp;
 end
@@ -377,9 +421,11 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseUp(dx, dy)
+    --[[
     if DelranDragToPlace.placingItem then
         DelranDragToPlace:Stop();
     end
+     ]]
     ORIGINAL_ISInventoryPane_onMouseUp(self, dx, dy);
 end
 

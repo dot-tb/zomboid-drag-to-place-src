@@ -22,7 +22,10 @@ local function getItemFromDragAndDrop()
         draggedItems = vanillaStack.items;
     elseif vanillaStack[1] and not vanillaStack[2] then
         -- Handle drag and drop from ItemGridUI
-        draggedItems = { vanillaStack[1].items[1] };
+        local draggedStack = vanillaStack[1];
+        if draggedStack.count == 2 then
+            draggedItems = { draggedStack.items[1] };
+        end
     end
     return draggedItems;
 end
