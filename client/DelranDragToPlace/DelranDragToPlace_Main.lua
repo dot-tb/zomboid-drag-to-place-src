@@ -80,11 +80,17 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
             if not self.playerInventory:getIsVisible() and not self:IsVisible() then
                 self:ShowCursor();
             end
-        elseif self.options.useShiftForRotateMode and key == self.options.rotateModeEnableKey then
+        elseif self.options.rotateModeEnabled and key == self.options.rotateModeEnableKey then
             --Rotate key pressed
             if not self.rotating then
                 local rotation = self.placeItemCursor.render3DItemRot;
-                self.rotating = { square = self.placeItemCursor.square, rotation = rotation, initialAngle = rotation, startingAngle = nil };
+                self.rotating = {
+                    square = self.placeItemCursor.square,
+                    rotation = rotation,
+                    initialAngle = rotation,
+                    startingAngle = nil
+                };
+
 
                 function DelranDragToPlace.Rotate3DCursorOnMouseMove(x, y)
                     if not self.placingItem then
@@ -351,9 +357,6 @@ end
 if not ORIGINAL_ISInventoryPane_onMouseMove then
     ORIGINAL_ISInventoryPane_onMouseMove = ISInventoryPane.onMouseMove;
 end
-if not ORIGINAL_ISInventoryPane_onMouseUp then
-    ORIGINAL_ISInventoryPane_onMouseUp = ISInventoryPane.onMouseUp;
-end
 
 ---@class WaitBeforeShowCursorTimer
 DelranDragToPlace.WaitBeforeShowCursorTimer = {}
@@ -417,16 +420,6 @@ function ISInventoryPane:onMouseMove(dx, dy)
     elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
-end
-
----@diagnostic disable-next-line: duplicate-set-field
-function ISInventoryPane:onMouseUp(dx, dy)
-    --[[
-    if DelranDragToPlace.placingItem then
-        DelranDragToPlace:Stop();
-    end
-     ]]
-    ORIGINAL_ISInventoryPane_onMouseUp(self, dx, dy);
 end
 
 -- ISInventoryPane will catch the fact that we are trying to drop an item
