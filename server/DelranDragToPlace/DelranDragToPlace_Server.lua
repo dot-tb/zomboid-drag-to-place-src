@@ -3,6 +3,7 @@ local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils")
 
 local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE - SERVER]")
 
+--[[
 if not ORIGINAL_ISObjectClickHandler_doRClick then
     ORIGINAL_ISObjectClickHandler_doRClick = ISObjectClickHandler.doRClick;
 end
@@ -14,18 +15,18 @@ ISObjectClickHandler.doRClick = function(object, x, y)
         ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
     end
 end
+ ]]
 
 
-
-if not ORIGINAL_ISObjectClickHandler_doRDoubleClick then
-    ORIGINAL_ISObjectClickHandler_doRDoubleClick = ISObjectClickHandler.doRDoubleClick;
+if not ORIGINAL_ISObjectClickHandler_doRClick then
+    ORIGINAL_ISObjectClickHandler_doRClick = ISObjectClickHandler.doRClick;
 end
 ---@diagnostic disable-next-line: duplicate-set-field
-ISObjectClickHandler.doRDoubleClick = function(object, x, y)
+ISObjectClickHandler.doRClick = function(object, x, y)
     if DragToPlace.placingItem then
         DragToPlace:Cancel();
     else
-        ORIGINAL_ISObjectClickHandler_doRDoubleClick(object, x, y);
+        ORIGINAL_ISObjectClickHandler_doRClick(object, x, y);
     end
 end
 
@@ -53,13 +54,3 @@ function ISPlace3DItemCursor:checkRotateKey()
     if not DragToPlace.options.faceItemWhilePlacing and DragToPlace.placingItem then return end
     OG_CHECK_ROTATE_KEY(self);
 end
-
---[[
-Ressources
-ISInventoryPage.onKeyPressed = function(key)
-	if getCore():isKey("Toggle Inventory", key) and getSpecificPlayer(0) and getGameSpeed() > 0 and getPlayerInventory(0) and getCore():getGameMode() ~= "Tutorial" then
-        getPlayerInventory(0):setVisible(not getPlayerInventory(0):getIsVisible());
-        getPlayerLoot(0):setVisible(getPlayerInventory(0):getIsVisible());
-    end
-end
-]]
