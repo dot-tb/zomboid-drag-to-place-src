@@ -146,6 +146,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
 end
 
 function DelranDragToPlace:CollapseUI()
+    dprint("Collapseui called")
     if self.uiCollapsed then
         return;
     end
@@ -161,9 +162,11 @@ function DelranDragToPlace:CollapseUI()
 end
 
 function DelranDragToPlace:RevealUI()
+    dprint("reveling ui called")
     if not self.uiCollapsed then
         return;
     end
+    dprint("reveling ui")
     self.uiCollapsed = false;
     self.playerInventory.isCollapsed = false;
     self.playerInventory:clearMaxDrawHeight();
@@ -234,6 +237,10 @@ function DelranDragToPlace:ShowCursor()
     self.startedFrom.dragging = nil;
     self.hidden = false;
 
+    if DelranDragToPlace.options.collapseUiOnShowCursor then
+        self:CollapseUI();
+    end
+
     -- Setting drag back to the cursor so it will show on the world
     getCell():setDrag(self.placeItemCursor, self.playerIndex);
 end
@@ -263,8 +270,10 @@ function DelranDragToPlace:HideCursor(resetDirection)
 end
 
 function DelranDragToPlace:PlaceItem()
-    if self.canceled then return end
-    if not ISMouseDrag.dragging then
+    if self.canceled then return end;
+    if self.uiCollapsed then
+        self:RevealUI();
+    elseif not ISMouseDrag.dragging then
         ISMouseDrag.dragging = DelranDragToPlace.isMouseDraggingData;
     end
     self:HideCursor(false);
@@ -357,6 +366,9 @@ end
 if not ORIGINAL_ISInventoryPane_onMouseMove then
     ORIGINAL_ISInventoryPane_onMouseMove = ISInventoryPane.onMouseMove;
 end
+if not ORIGINAL_ISInventoryPage_onMouseMove then
+    ORIGINAL_ISInventoryPage_onMouseMove = ISInventoryPage.onMouseMove;
+end
 
 ---@class WaitBeforeShowCursorTimer
 DelranDragToPlace.WaitBeforeShowCursorTimer = {}
@@ -420,6 +432,14 @@ function ISInventoryPane:onMouseMove(dx, dy)
     elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
+end
+
+---@diagnostic disable-next-line: duplicate-set-field
+function ISInventoryPage:onMouseMove(dx, dy)
+    if DelranDragToPlace.placingItem and DelranDragToPlace.uiCollapsed then
+        DelranDragToPlace:RevealUI();
+    end
+    ORIGINAL_ISInventoryPage_onMouseMove(self, dx, dy);
 end
 
 -- ISInventoryPane will catch the fact that we are trying to drop an item

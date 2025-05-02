@@ -12,6 +12,10 @@ dragToPlaceOptions:addDescription("Should the player follow the item while placi
 dragToPlaceOptions:addTickBox("faceItemWhilePlacing", "Face item while placing", false);
 
 dragToPlaceOptions:addSeparator();
+dragToPlaceOptions:addDescription("Should the inventory and loot UI close when placing an item ?.");
+dragToPlaceOptions:addTickBox("collapseUiOnShowCursor", "Close UI when placing item", true);
+
+dragToPlaceOptions:addSeparator();
 dragToPlaceOptions:addDescription(
     "Enable rotate mode when pressing shif key, placed item will be locked in place and can be rotated using the mouse.");
 dragToPlaceOptions:addTickBox("rotateModeEnabled", "Enable rotate mode", true);
@@ -22,6 +26,7 @@ dragToPlaceOptions:addKeyBind("rotateModeEnableKey", "Rotate mode key", keyboard
 
 ---@class DragToPlaceOptions
 ---@field faceItemWhilePlacing boolean
+---@field collapseUiOnShowCursor boolean
 ---@field rotateModeEnabled boolean
 ---@field rotateModeEnableKey integer
 local DragToPlaceOptions = {};
