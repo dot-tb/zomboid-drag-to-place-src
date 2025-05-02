@@ -3,6 +3,7 @@ if not activatedMods:contains("INVENTORY_TETRIS") then return end;
 
 local DragToPlace = require("DelranDragToPlace/DelranDragToPlace_Main");
 local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
+local UICodeRunner = require("DelranDragToPlace/DelranDragToPlace_UICodeRunner");
 
 require "EquipmentUI/DragAndDrop"
 require "InventoryTetris/Patches/Core/DragAndDrop_TetrisExtensions"
@@ -22,59 +23,70 @@ local DragItemRenderer = DragItemRenderer;
 --local ItemGridUI = require("InventoryTetris/UI/Grid/ItemGridUI_rendering");
 local ItemGridContainerUI = ItemGridContainerUI;
 
+---@return InventoryItem[] | nil
+local function getItemFromDragAndDrop()
+    ---@type ISInventoryPaneDraggedItems
+    local vanillaStack = DragAndDrop.getDraggedStack();
+    if not vanillaStack then return nil end;
+
+    local draggedItems = nil;
+    if vanillaStack.items then
+        -- Handle drag and drop from EquipmentUI
+        draggedItems = vanillaStack.items;
+    elseif vanillaStack[1] and not vanillaStack[2] then
+        -- Handle drag and drop from ItemGridUI
+        local draggedStack = vanillaStack[1];
+        if draggedStack.count == 2 then
+            draggedItems = { draggedStack.items[1] };
+        end
+    end
+    return draggedItems;
+end
+
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
-    --[[
-        if true then return end;
-        --]]
-    --dprint("onMouseMove")
-    --ORIGINAL_ISInventoryPane_onMouseMove(self);
-    if DragToPlace.placingItem and DragToPlace.startedFrom == self and not DragToPlace.hidden then
-        DragToPlace:HideCursor();
+    if DragToPlace.placingItem then
+        if DragToPlace.startedFrom == self and not DragToPlace.hidden then
+            DragToPlace:HideCursor();
+        end
+    elseif DragAndDrop:isDragging() then
+        local draggedItems = getItemFromDragAndDrop();
+        if draggedItems then
+            DragToPlace:Start(getPlayer(), draggedItems, self);
+        end
     end
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     --ORIGINAL_ISInventoryPane_onMouseMoveOutside(self);
-    --dprint("onMouseMoveOutside")
-    if DragToPlace.placingItem and DragToPlace.startedFrom == self then
-        local isMouseOverUI = DelranUtils.IsMouseOverUI();
-        if DragToPlace:IsHidden() and not isMouseOverUI then
-            DragToPlace:StartShowCursorTimer();
-        elseif DragToPlace:IsVisible() and isMouseOverUI then
-            DragToPlace:HideCursor();
-        end
-    elseif DragAndDrop:isDragging() and not DragToPlace.placingItem then
-        dprint(DragAndDrop);
-        local vanillaStack = DragAndDrop.getDraggedStack();
-        ---@cast vanillaStack ISInventoryPaneDraggedItems
-        ---@
-        if not vanillaStack then return end;
-
-        local draggedItems = nil;
-        if vanillaStack.items then
-            -- Handle drag and drop from EquipmentUI
-            draggedItems = vanillaStack.items;
-        elseif vanillaStack[1] then
-            draggedItems = { vanillaStack[1].items[1] };
-            -- Handle drag and drop from ItemGridUI
-        end
-        if draggedItems then
-            dprint("Starting new drag")
-            DragToPlace:Start(getPlayer(), draggedItems, self);
-        end
+    if not DragToPlace.placingItem and DragAndDrop:isDragging() then
+        local draggedItems = getItemFromDragAndDrop();
+        if not draggedItems then return end;
+        DragToPlace:Start(getPlayer(), draggedItems, self);
     end
 end
 
---[[
-ORIGINAL_DragToPlace_ShowCursor = ORIGINAL_DragToPlace_ShowCursor or DragToPlace.ShowCursor;
----@diagnostic disable-next-line: duplicate-set-field
-function DragToPlace:ShowCursor()
-    ORIGINAL_DragToPlace_ShowCursor(self);
-end
- ]]
+ORIGINAL_UICodeRunner_onMouseUpOutside = ORIGINAL_UICodeRunner_onMouseUpOutside or UICodeRunner.onMouseUpOutside;
+function UICodeRunner:onMouseUpOutside(x, y)
+    local playerNum = self.dragToPlace.playerIndex;
+    ORIGINAL_UICodeRunner_onMouseUpOutside(self);
+    if not self.dragToPlace.playerInventory:isVisible() then
+        --- Canceling InventoryTetris drag and dropping the dragged item.
+        DragAndDrop.ownersForCancel[ISMouseDrag.dragOwner] = {
+            callback = function()
+                local stack = DragAndDrop.getDraggedStack();
+                if not stack or not stack.items then return end;
 
+                local item = stack.items[1];
+                if not item then return end;
+                ISInventoryPaneContextMenu.dropItem(item, playerNum);
+            end
+        }
+    end
+end
+
+-- Disable the rendering of the dragged item when placing it in the world
 ORIGINAL_DragItemRenderer_render = ORIGINAL_DragItemRenderer_render or DragItemRenderer.render;
 ---@diagnostic disable-next-line: duplicate-set-field
 function DragItemRenderer:render()
@@ -84,43 +96,6 @@ function DragItemRenderer:render()
 end
 
 local EquipmentUITypes = { "EquipmentUI", "EquipmentSlot", "EquipmentSuperSlot", "WeaponSlot", "HotbarSlot" }
-
-local function CancelOnMouseUp(UIElement)
-    -- Event should always come from an ISInventoryPane, except for EquipmentUI
-    if UIElement.Type ~= "ISInventoryPane" then
-        -- If we got a mouse up on a EquipmentUI ui, stop no matter what
-        for _, EquipmentUIType in ipairs(EquipmentUITypes) do
-            if EquipmentUIType == UIElement.Type then
-                dprint("STOPING CAUSE OF INVENTORY UI");
-                DragToPlace:Stop();
-                break
-            end
-        end
-        -- If the cursor is hidden, it means that we are over UI,
-        --   then we need to cancel the drag
-    elseif DragToPlace.placingItem and DragToPlace:IsHidden() then
-        dprint("STOPING CAUSE OF THINGY");
-        DragToPlace:Stop();
-    end
-end
-
--- I have no idea wtf I am doingg
-
----@diagnostic disable-next-line: duplicate-set-field
-function ISInventoryPane:onMouseUpOutside(x, y)
-    if DragToPlace.placingItem and DragToPlace.canceled then
-        ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
-        return;
-    end
-    --ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
-    --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
-    if not DragToPlace.hidden and self == DragToPlace.startedFrom then
-        DragToPlace:PlaceItem();
-    else
-        ORIGINAL_ISInventoryPane_onMouseUpOutside(self, x, y);
-        CancelOnMouseUp(self);
-    end
-end
 
 ORIGINAL_ItemGridContainerUI_onMouseMoveOutside = ORIGINAL_ItemGridContainerUI_onMouseMoveOutside or
     ItemGridContainerUI.onMouseMoveOutside;
@@ -177,7 +152,7 @@ end
 -- Equipment UI only has globals so...
 -- Gotta patch each functions, didn't find an unified way to do this,
 --     EquipmentUI is kinda of a pain with all the independant ui elements
-ORIGINAL_EquipmentUI_onMouseUp = ORIGINAL_EquipmentUI_onMouseUp or EquipmentUI.onMouseUp;
+--[[ ORIGINAL_EquipmentUI_onMouseUp = ORIGINAL_EquipmentUI_onMouseUp or EquipmentUI.onMouseUp;
 function EquipmentUI:onMouseUp(x, y)
     CancelOnMouseUp(self);
     ORIGINAL_EquipmentUI_onMouseUp(self, x, y);
@@ -209,4 +184,4 @@ ORIGINAL_HotbarSlot_onMouseUp = ORIGINAL_HotbarSlot_onMouseUp or HotbarSlot.onMo
 function HotbarSlot:onMouseUp(x, y)
     CancelOnMouseUp(self);
     ORIGINAL_HotbarSlot_onMouseUp(self, x, y);
-end
+end ]]

@@ -4,54 +4,69 @@ require "server/BuildingObjects/ISPlace3DItemCursor"
 
 local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
+local Core = getCore();
+
+local UICodeRunner = require("DelranDragToPlace/DelranDragToPlace_UICodeRunner")
+
+---@class DelranDragToPlace
+---@field player IsoPlayer
+---@field playerInventory ISInventoryPage
+---@field playerIndex integer
+---@field draggedItems InventoryItem[]
+---@field actualDraggedItem InventoryItem
+---@field startedFrom ISInventoryPane
+---@field lootInventoryPage ISInventoryPage
+---@field placeItemCursor ISPlace3DItemCursor
+---@field codeRunner UICodeRunner
+---@field placingItem boolean
+---@field hidden boolean
+---@field canceled boolean
+---@field uiCollapsed boolean
+---@field isMouseDraggingData any
+---Probably should make a class out of that, and switch the object to have multiple modes
+---@field rotating {square: IsoGridSquare, rotation: number, initialAngle: number, startingAngle: number|nil, x: number|nil , y: number|nil, z: number|nil}
 local DelranDragToPlace = {};
--- Mod data to keep track of the rotation of placed items.
----@type { [InventoryItem]: integer }
-DelranDragToPlace.placedItemsRotation = nil;
-Events.OnInitGlobalModData.Add(function()
-    local dragToPlaceModData = ModData.getOrCreate("DelranDragToPlaceB41")
-    dragToPlaceModData.placedItemsRotation = dragToPlaceModData.placedItemsRotation or {};
-    DelranDragToPlace.placedItemsRotation = dragToPlaceModData.placedItemsRotation;
-end)
 
-
----@type IsoPlayer
 DelranDragToPlace.player = nil;
----@type integer
+DelranDragToPlace.playerInventory = nil;
 DelranDragToPlace.playerIndex = nil;
----@type ISInventoryPaneDraggedItems
 DelranDragToPlace.draggedItems = nil;
----@type InventoryItem
 DelranDragToPlace.actualDraggedItem = nil;
----@type ISInventoryPane
 DelranDragToPlace.startedFrom = nil;
----@type ISPlace3DItemCursor
 DelranDragToPlace.placeItemCursor = nil;
+DelranDragToPlace.codeRunner = nil;
 
-DelranDragToPlace.placingItem = false;
 DelranDragToPlace.hidden = true;
+DelranDragToPlace.placingItem = false;
 DelranDragToPlace.canceled = false;
+
+--DelranDragToPlace.options = require("DelranDragToPlace/DelranDragToPlace_ModOptions");
 
 ---@param player IsoPlayer
 ---@param draggedItems InventoryItem[]
 ---@param startedFrom ISInventoryPane
 function DelranDragToPlace:Start(player, draggedItems, startedFrom)
     self.placingItem = true;
+    self.uiCollapsed = false;
+    self.isMouseDraggingData = nil;
     self.startedFrom = startedFrom;
 
     self.player = player;
     self.startDirection = self.player:getDirectionAngle();
     self.playerIndex = self.player:getPlayerNum();
+    self.playerInventory = getPlayerInventory(self.playerIndex);
+
+    self.lootInventoryPage = getPlayerLoot(self.playerIndex);
+
     self.draggedItems = draggedItems;
     self.actualDraggedItem = draggedItems[1];
-    self.startingContainer = self.actualDraggedItem:getContainer();
+    ---@type ISInventoryPane
+    local inventoryPane = self.lootInventoryPage.inventoryPane;
+    self.startingContainer = inventoryPane.inventory;
 
     self.worldItem = self.actualDraggedItem:getWorldItem();
 
     self.placeItemCursor = ISPlace3DItemCursor:new(self.player, self.draggedItems);
-    if self.worldItem and self.placedItemsRotation[self.worldItem] then
-        self.placeItemCursor.render3DItemRot = self.placedItemsRotation[self.worldItem];
-    end
 
     self.WaitBeforeShowCursorTimer:Start(self.startedFrom);
 
@@ -59,10 +74,126 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
         self:OnPlayerMove(_player);
     end
 
+    function DelranDragToPlace.OnKeyPressed(key)
+        if self.canceled then return end;
+        if key == Core:getKey("Toggle Inventory") then
+            --self.playerInventory.inventoryPane:clearWorldObjectHighlights();
+            if not self.playerInventory:getIsVisible() and not self:IsVisible() then
+                self:ShowCursor();
+            end
+            -- Disabling rotate mode for now
+            -- [TODO]: Test
+        elseif key == Core:getKey("Rotate building") then
+            --elseif self.options.rotateModeEnabled and key == self.options.rotateModeEnableKey then
+            --Rotate key pressed
+            if not self.rotating then
+                local rotation = self.placeItemCursor.render3DItemRot;
+                self.rotating = {
+                    square = self.placeItemCursor.square,
+                    rotation = rotation,
+                    initialAngle = rotation,
+                    startingAngle = nil
+                };
+
+
+                function DelranDragToPlace.Rotate3DCursorOnMouseMove(x, y)
+                    if not self.placingItem then
+                        self.rotating = nil;
+                        Events.OnMouseMove.Remove(self.Rotate3DCursorOnMouseMove);
+                        return;
+                    end
+                    local rx = self.rotating.x;
+                    local ry = self.rotating.y;
+                    if not rx or not ry then return end;
+                    local z = self.player:getZ();
+                    local isoX = screenToIsoX(self.playerIndex, x, y, self.rotating.z);
+                    local isoY = screenToIsoY(self.playerIndex, x, y, self.rotating.z);
+
+                    local newAngle = math.atan2(isoY - ry, isoX - rx);
+                    -- Keep the radians in the positive
+                    newAngle = (newAngle + 6.28) % 6.28;
+                    -- Convert to degrees
+                    newAngle = newAngle * 180 / 3.14;
+                    if not self.rotating.startingAngle then
+                        if newAngle ~= 0 then
+                            self.rotating.startingAngle = newAngle;
+                        end
+                    else
+                        local delta = (newAngle - self.rotating.startingAngle + 360) % 360;
+                        local finalAngle = self.rotating.initialAngle + delta;
+                        self.rotating.rotation = finalAngle;
+                        self.placeItemCursor.render3DItemRot = finalAngle;
+                    end
+                end
+
+                Events.OnMouseMove.Add(DelranDragToPlace.Rotate3DCursorOnMouseMove);
+            else
+                self.rotating = nil;
+                Events.OnMouseMove.Remove(DelranDragToPlace.Rotate3DCursorOnMouseMove);
+            end
+        end
+    end
+
+    -- Moved to UICodeRunner
+    --[[
+    function DelranDragToPlace.OnMouseUp(x, y)
+        self:PlaceItem();
+    end
+    ]]
+
+    self.codeRunner = UICodeRunner:new(self);
+    self.codeRunner:addToUIManager();
+
+    --Events.OnMouseUp.Add(DelranDragToPlace.OnMouseUp);
     Events.OnPlayerMove.Add(OnPlayerMoveTemp);
+    Events.OnKeyPressed.Add(DelranDragToPlace.OnKeyPressed);
+end
+
+function DelranDragToPlace:CollapseUI()
+    if self.uiCollapsed then
+        return;
+    end
+    self.uiCollapsed = true;
+    if ISMouseDrag.dragging then
+        DelranDragToPlace.isMouseDraggingData = ISMouseDrag.dragging;
+        ISMouseDrag.dragging = nil;
+    end
+    self.playerInventory.isCollapsed = true;
+    self.playerInventory:setMaxDrawHeight(self.playerInventory:titleBarHeight());
+    self.lootInventoryPage.isCollapsed = true;
+    self.lootInventoryPage:setMaxDrawHeight(self.lootInventoryPage:titleBarHeight());
+end
+
+function DelranDragToPlace:RevealUI()
+    if not self.uiCollapsed then
+        return;
+    end
+    self.uiCollapsed = false;
+    self.playerInventory.isCollapsed = false;
+    self.playerInventory:clearMaxDrawHeight();
+    self.lootInventoryPage.isCollapsed = false;
+    self.lootInventoryPage:clearMaxDrawHeight();
+
+    if DelranDragToPlace.isMouseDraggingData then
+        ISMouseDrag.dragging = DelranDragToPlace.isMouseDraggingData;
+        DelranDragToPlace.isMouseDraggingData = nil;
+    end
+end
+
+function DelranDragToPlace:ToggleUICollapse()
+    if self.uiCollapsed then
+        self:RevealUI();
+    else
+        self:CollapseUI();
+    end
 end
 
 function DelranDragToPlace:Stop()
+    -- Guard against multiple calls, should look into a better solution.
+    -- UICodeRunner will call stop every mouse up while placing an item
+    if not self.placingItem then return end;
+    self.codeRunner:removeFromUIManager();
+    self.codeRunner = nil;
     -- Hide the 3D cursor
     if not self.hidden then
         ---@diagnostic disable-next-line: param-type-mismatch
@@ -70,6 +201,8 @@ function DelranDragToPlace:Stop()
     end
 
     Events.OnPlayerMove.Remove(OnPlayerMoveTemp);
+    Events.OnKeyPressed.Remove(DelranDragToPlace.OnKeyPressed);
+    --Events.OnMouseUp.Remove(DelranDragToPlace.OnMouseUp);
     -- Clear the show cursor timer
     self.WaitBeforeShowCursorTimer:Reset();
 
@@ -88,6 +221,7 @@ end
 
 ---Force DragToPlace to cancel without stopping the UI drag
 function DelranDragToPlace:Cancel()
+    self:RevealUI();
     self:HideCursor();
     self.canceled = true;
 end
@@ -104,8 +238,14 @@ function DelranDragToPlace:ShowCursor()
     self.startedFrom.dragging = nil;
     self.hidden = false;
 
+    -- [TODO]: Add option
+    --if DelranDragToPlace.options.collapseUiOnShowCursor then
+    if true then
+        self:CollapseUI();
+    end
+
     -- Setting drag back to the cursor so it will show on the world
-    getCell():setDrag(self.placeItemCursor, self.playerIndex)
+    getCell():setDrag(self.placeItemCursor, self.playerIndex);
 end
 
 ---@param resetDirection? boolean
@@ -123,9 +263,9 @@ function DelranDragToPlace:HideCursor(resetDirection)
         self.player:setDirectionAngle(self.startDirection);
 
         if self.player:shouldBeTurning() then
-            lootInventoryPage:setForceSelectedContainer(self.actualDraggedItem:getContainer())
+            lootInventoryPage:setForceSelectedContainer(self.startingContainer)
         end
-        lootInventoryPage:selectButtonForContainer(self.actualDraggedItem:getContainer())
+        lootInventoryPage:selectButtonForContainer(self.startingContainer)
     end
 
     -- Let the ISInventoryPane draw the dragged inventory item
@@ -133,7 +273,12 @@ function DelranDragToPlace:HideCursor(resetDirection)
 end
 
 function DelranDragToPlace:PlaceItem()
-    if self.canceled then return end
+    if self.canceled then return end;
+    if self.uiCollapsed then
+        self:RevealUI();
+    elseif not ISMouseDrag.dragging then
+        ISMouseDrag.dragging = DelranDragToPlace.isMouseDraggingData;
+    end
     self:HideCursor(false);
     -- Get the dragged item from the ISInventoryPane
     -- There should only be one as we don't start the drag if there is more than one dragged item
@@ -144,7 +289,7 @@ function DelranDragToPlace:PlaceItem()
     if worldItem then
         local itemSquare = worldItem:getSquare();
         if not tileFinder:IsNextToSquare(itemSquare) then
-            -- If the item is in the world, walk nest to it first
+            -- If the item is in the world, walk next to it first
             pickupSquare = tileFinder:Find(itemSquare);
             -- If there is no free square next to the item, we cannot reach it, abort.
             if pickupSquare == nil then
@@ -160,7 +305,7 @@ function DelranDragToPlace:PlaceItem()
     tileFinder = TileFinder:BuildForSquare(pickupSquare);
     -- Walk to the square where we want to drop the item
     ---@type IsoGridSquare
-    local dropSquare = self.placeItemCursor.selectedSqDrop;
+    local dropSquare = self.rotating and self.rotating.square or self.placeItemCursor.selectedSqDrop;
     if not tileFinder:IsNextToSquare(dropSquare) then
         local freeSquare = tileFinder:Find(dropSquare);
         if freeSquare == nil then
@@ -174,14 +319,23 @@ function DelranDragToPlace:PlaceItem()
     if self.player:isEquipped(draggedItem) then
         ISTimedActionQueue.add(ISUnequipAction:new(self.player, draggedItem, 50));
     end
-    --self.player:faceDirection();
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
-    ---@diagnostic disable-next-line: param-type-mismatch
-    local y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+
+    local x = 0;
+    local y = 0;
+
+    if self.rotating then
+        x = self.rotating.x;
+        y = self.rotating.y;
+        self.placeItemCursor.render3DItemXOffset = x - dropSquare:getX();
+        self.placeItemCursor.render3DItemYOffset = y - dropSquare:getY();
+        self.placeItemCursor.render3DItemZOffset = self.rotating.z;
+        self.placeItemCursor.render3DItemRot = self.rotating.rotation;
+    else
+        x = screenToIsoX(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+        y = screenToIsoY(self.playerIndex, getMouseX(), getMouseY(), self.player:getZ());
+    end
 
     ISTimedActionQueue.add(FaceCoordinatesAction:new(self.player, x, y));
-
     -- Finaly, drop the item at the position and rotation of the cursor.
     ISTimedActionQueue.add(ISDropWorldItemAction:new(self.player, draggedItem, dropSquare,
         self.placeItemCursor.render3DItemXOffset, self.placeItemCursor.render3DItemYOffset,
@@ -215,11 +369,8 @@ end
 if not ORIGINAL_ISInventoryPane_onMouseMove then
     ORIGINAL_ISInventoryPane_onMouseMove = ISInventoryPane.onMouseMove;
 end
-if not ORIGINAL_ISInventoryPane_onMouseUpOutside then
-    ORIGINAL_ISInventoryPane_onMouseUpOutside = ISInventoryPane.onMouseUpOutside;
-end
-if not ORIGINAL_ISInventoryPane_onMouseUp then
-    ORIGINAL_ISInventoryPane_onMouseUp = ISInventoryPane.onMouseUp;
+if not ORIGINAL_ISInventoryPage_onMouseMove then
+    ORIGINAL_ISInventoryPage_onMouseMove = ISInventoryPage.onMouseMove;
 end
 
 ---@class WaitBeforeShowCursorTimer
@@ -252,7 +403,6 @@ end
 function DelranDragToPlace.WaitBeforeShowCursorTimer:Start(owner)
     if self.owner == owner then return end;
     self.owner = owner;
-    self.items = self.owner.draggedItems;
 
     function UpdateDragToPlaceTimer(gameTick)
         self:UpdateTimer(gameTick);
@@ -265,54 +415,34 @@ function DelranDragToPlace.WaitBeforeShowCursorTimer:Reset()
     Events.OnTick.Remove(UpdateDragToPlaceTimer);
     self.ticksElapsed = 0;
     self.owner = nil;
-    self.items = nil;
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
-    if DelranDragToPlace.placingItem and DelranDragToPlace.startedFrom == self then
-        local isMouseOverUI = DelranUtils.IsMouseOverUI();
-        if DelranDragToPlace.hidden and not isMouseOverUI then
-            DelranDragToPlace:StartShowCursorTimer();
-        elseif not DelranDragToPlace.hidden and isMouseOverUI then
-            DelranDragToPlace:HideCursor();
-        end
-    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
-        if not DelranDragToPlace.placingItem then
-            DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
-        end
+    if not DelranDragToPlace.placingItem and self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+        DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
-    if DelranDragToPlace.placingItem and DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
-        DelranDragToPlace:HideCursor();
-    end
-end
-
----@diagnostic disable-next-line: duplicate-set-field
-function ISInventoryPane:onMouseUpOutside(dx, dy)
-    --DelranDragToPlace.WaitBeforeShowCursorTimer:Reset();
-    if not DelranDragToPlace.hidden and self == DelranDragToPlace.startedFrom and DelranDragToPlace.placingItem and not DelranUtils.IsMouseOverUI() then
-        DelranDragToPlace:PlaceItem();
-    else
-        ORIGINAL_ISInventoryPane_onMouseUpOutside(self, dx, dy);
-        if DelranDragToPlace.placingItem and self == DelranDragToPlace.startedFrom then
-            self.dragging = nil;
-            DelranDragToPlace:Stop();
-        end;
-    end
-end
-
----@diagnostic disable-next-line: duplicate-set-field
-function ISInventoryPane:onMouseUp(dx, dy)
     if DelranDragToPlace.placingItem then
-        DelranDragToPlace:Stop();
+        if DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
+            DelranDragToPlace:HideCursor();
+        end
+    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+        DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
-    ORIGINAL_ISInventoryPane_onMouseUp(self, dx, dy);
+end
+
+---@diagnostic disable-next-line: duplicate-set-field
+function ISInventoryPage:onMouseMove(dx, dy)
+    if DelranDragToPlace.placingItem and DelranDragToPlace.uiCollapsed then
+        DelranDragToPlace:RevealUI();
+    end
+    ORIGINAL_ISInventoryPage_onMouseMove(self, dx, dy);
 end
 
 ORIGINAL_Mouse_isLeftDown = ORIGINAL_Mouse_isLeftDown or Mouse.isLeftDown
@@ -333,7 +463,6 @@ end
 ORIGINAL_ISUnequip_new = ORIGINAL_ISUnequip_new or ISInventoryPaneContextMenu.dropItem;
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPaneContextMenu.dropItem(item, player)
-    dprint("ARE WE FUCKING HERE ?")
     if DelranDragToPlace.placingItem then
         if DelranDragToPlace.playerIndex == player and DelranDragToPlace.actualDraggedItem == item then
             return
@@ -342,17 +471,27 @@ function ISInventoryPaneContextMenu.dropItem(item, player)
     ORIGINAL_ISUnequip_new(item, player);
 end
 
-return DelranDragToPlace
-
---[[
-Ressources
-
-Mouse.UICaptured
-
-ISInventoryPage.onKeyPressed = function(key)
-	if getCore():isKey("Toggle Inventory", key) and getSpecificPlayer(0) and getGameSpeed() > 0 and getPlayerInventory(0) and getCore():getGameMode() ~= "Tutorial" then
-        getPlayerInventory(0):setVisible(not getPlayerInventory(0):getIsVisible());
-        getPlayerLoot(0):setVisible(getPlayerInventory(0):getIsVisible());
+OG_RENDER_3D_ITEM = OG_RENDER_3D_ITEM or Render3DItem;
+---@param item InventoryItem
+---@param sq IsoGridSquare
+---@param xoffset number
+---@param yoffset number
+---@param zoffset number
+---@param rotation number
+function Render3DItem(item, sq, xoffset, yoffset, zoffset, rotation)
+    local dtp = DelranDragToPlace;
+    if dtp.placingItem and dtp.actualDraggedItem == item and dtp.rotating then
+        local rotateData = dtp.rotating;
+        if not rotateData.x or not rotateData.y or not rotateData.z then
+            rotateData.x = xoffset;
+            rotateData.y = yoffset;
+            rotateData.z = zoffset;
+        end
+        OG_RENDER_3D_ITEM(item, sq, rotateData.x, rotateData.y, rotateData.z,
+            rotateData.rotation);
+        return;
     end
+    OG_RENDER_3D_ITEM(item, sq, xoffset, yoffset, zoffset, rotation);
 end
-]]
+
+return DelranDragToPlace
