@@ -51,6 +51,6 @@ end
 OG_CHECK_ROTATE_KEY = OG_CHECK_ROTATE_KEY or ISPlace3DItemCursor.checkRotateKey;
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISPlace3DItemCursor:checkRotateKey()
-    if not DragToPlace.options.faceItemWhilePlacing and DragToPlace.placingItem then return end
+    if not DragToPlace.options.rotateModeEnabled and DragToPlace.placingItem then return end
     OG_CHECK_ROTATE_KEY(self);
 end
