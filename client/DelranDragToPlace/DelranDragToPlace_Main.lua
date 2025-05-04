@@ -1,6 +1,6 @@
 local TileFinder = require("DelranDragToPlace/DelranLib/DelranTileFinder");
 local DelranUtils = require("DelranDragToPlace/DelranLib/DelranUtils");
-require "server/BuildingObjects/ISPlace3DItemCursor"
+require "BuildingObjects/ISPlace3DItemCursor"
 
 local dprint = DelranUtils.GetDebugPrint("[DELRAN'S DRAG TO PLACE]");
 
@@ -22,10 +22,13 @@ local UICodeRunner = require("DelranDragToPlace/DelranDragToPlace_UICodeRunner")
 ---@field hidden boolean
 ---@field canceled boolean
 ---@field uiCollapsed boolean
+---@field options DragToPlaceOptions
 ---@field isMouseDraggingData any
 ---Probably should make a class out of that, and switch the object to have multiple modes
 ---@field rotating {square: IsoGridSquare, rotation: number, initialAngle: number, startingAngle: number|nil, x: number|nil , y: number|nil, z: number|nil}
 local DelranDragToPlace = {};
+
+DelranDragToPlace.options = require("DelranDragToPlace/DelranDragToPlace_ModOptions");
 
 DelranDragToPlace.player = nil;
 DelranDragToPlace.playerInventory = nil;
@@ -81,10 +84,7 @@ function DelranDragToPlace:Start(player, draggedItems, startedFrom)
             if not self.playerInventory:getIsVisible() and not self:IsVisible() then
                 self:ShowCursor();
             end
-            -- Disabling rotate mode for now
-            -- [TODO]: Test
-        elseif key == Core:getKey("Rotate building") then
-            --elseif self.options.rotateModeEnabled and key == self.options.rotateModeEnableKey then
+        elseif self.options.rotateModeEnabled and key == Core:getKey("DelranDragToPlaceRotateKeybind") then
             --Rotate key pressed
             if not self.rotating then
                 local rotation = self.placeItemCursor.render3DItemRot;
@@ -239,8 +239,7 @@ function DelranDragToPlace:ShowCursor()
     self.hidden = false;
 
     -- [TODO]: Add option
-    --if DelranDragToPlace.options.collapseUiOnShowCursor then
-    if true then
+    if DelranDragToPlace.options.collapseUiOnShowCursor then
         self:CollapseUI();
     end
 

@@ -1,44 +1,53 @@
-if true then
-    return;
+-- These are the settings.
+local SETTINGS = {
+    ---@class DragToPlaceOptions
+    ---@field faceItemWhilePlacing boolean
+    ---@field collapseUiOnShowCursor boolean
+    ---@field rotateModeEnabled boolean
+    options = {
+        faceItemWhilePlacing = false,
+        collapseUiOnShowCursor = true,
+        rotateModeEnabled = true,
+    },
+    names = {
+        faceItemWhilePlacing = "Face item while placing",
+        collapseUiOnShowCursor = "Collapse the inventory when placing an item",
+        rotateModeEnabled = "Enable rotate mode",
+    },
+    tooltips = {
+        faceItemWhilePlacing =
+        "If unchecked, unlike in vanilla, the player will not turn around and look at the item while you're placing it.",
+        collapseUiOnShowCursor =
+        "If checked, the inventory windows will collapse when an item is being placed using this mod.",
+        rotateModeEnabled =
+        "If checked, you can use the rotate key keybind to enable the rotate mode which allows you to rotate the item using the mouse.",
+    },
+    mod_id = "DelranDragToPlace",
+    mod_shortname = "Drag To Place",
+    mod_fullname = "Delran's Drag To Place",
+}
+
+-- Connecting the settings to the menu, so user can change them.
+if ModOptions and ModOptions.getInstance then
+    local modOptions = ModOptions:getInstance(SETTINGS)
+
+    local key_data = {
+        key = Keyboard.KEY_R,
+        name = "DelranDragToPlaceRotateKeybind",
+    }
+    ModOptions:AddKeyBinding("[Drag To Place]", key_data);
+
+    local faceItemWhilePlacingOption = modOptions:getData("faceItemWhilePlacing");
+    local collapseUiOnShowCursorOption = modOptions:getData("collapseUiOnShowCursor");
+    local rotateModeEnabledOption = modOptions:getData("rotateModeEnabled");
+
+    faceItemWhilePlacingOption.tooltip =
+    "If unchecked, unlike in vanilla, the player will not turn around and look at the item while you're placing it.";
+    collapseUiOnShowCursorOption.tooltip =
+    "If checked, the inventory windows will collapse when an item is being placed using this mod.";
+    rotateModeEnabledOption.tooltip =
+    "If checked, you can use the rotate key keybind to enable the rotate mode which allows you to rotate the item using the mouse.";
 end
 
-local utils = require("DelranDragToPlace/DelranLib/DelranUtils");
-local keyboard = Keyboard;
 
-local OPTIONS_ID = "DelranDragToPlaceModOptions";
----@type ModOptions.Options
-local dragToPlaceOptions = PZAPI.ModOptions:create(OPTIONS_ID, "Drag To Place Options");
-
-dragToPlaceOptions:addDescription("This is the mod options for the Drag To Place mod");
-
-dragToPlaceOptions:addSeparator();
-dragToPlaceOptions:addDescription("Should the player follow the item while placing it (In vanilla, this would be true).");
-dragToPlaceOptions:addTickBox("faceItemWhilePlacing", "Face item while placing", false);
-
-dragToPlaceOptions:addSeparator();
-dragToPlaceOptions:addDescription("Should the inventory and loot UI close when placing an item ?.");
-dragToPlaceOptions:addTickBox("collapseUiOnShowCursor", "Close UI when placing item", true);
-
-dragToPlaceOptions:addSeparator();
-dragToPlaceOptions:addDescription(
-    "Enable rotate mode when pressing shif key, placed item will be locked in place and can be rotated using the mouse.");
-dragToPlaceOptions:addTickBox("rotateModeEnabled", "Enable rotate mode", true);
-
-dragToPlaceOptions:addSeparator();
-dragToPlaceOptions:addDescription("The key that needs to be pressed to enter rotate mode");
-dragToPlaceOptions:addKeyBind("rotateModeEnableKey", "Rotate mode key", keyboard.KEY_R);
-
----@class DragToPlaceOptions
----@field faceItemWhilePlacing boolean
----@field collapseUiOnShowCursor boolean
----@field rotateModeEnabled boolean
----@field rotateModeEnableKey integer
-local DragToPlaceOptions = {};
-
-dragToPlaceOptions.apply = utils.ExtractModOptions(DragToPlaceOptions);
-
-Events.OnMainMenuEnter.Add(function()
-    dragToPlaceOptions:apply();
-end)
-
-return DragToPlaceOptions;
+return SETTINGS.options;
