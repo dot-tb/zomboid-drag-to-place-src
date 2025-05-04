@@ -412,9 +412,6 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
-    if not self == ISMouseDrag.dragOwner then
-        return
-    end
     if DelranDragToPlace.placingItem then
         if DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
             DelranDragToPlace:HideCursor();
