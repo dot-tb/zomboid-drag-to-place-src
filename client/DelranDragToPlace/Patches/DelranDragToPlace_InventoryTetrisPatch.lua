@@ -32,11 +32,7 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
-    if DragToPlace.placingItem then
-        if DragToPlace.startedFrom == self and not DragToPlace.hidden then
-            DragToPlace:HideCursor();
-        end
-    elseif DragAndDrop:isDragging() then
+    if not DragToPlace.placingItem and DragAndDrop:isDragging() then
         local draggedItems = getItemFromDragAndDrop();
         if draggedItems then
             DragToPlace:Start(getPlayer(), draggedItems, self);
@@ -46,12 +42,6 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
-    --ORIGINAL_ISInventoryPane_onMouseMoveOutside(self);
-    if not DragToPlace.placingItem and DragAndDrop:isDragging() then
-        local draggedItems = getItemFromDragAndDrop();
-        if not draggedItems then return end;
-        DragToPlace:Start(getPlayer(), draggedItems, self);
-    end
 end
 
 ORIGINAL_UICodeRunner_onMouseUpOutside = ORIGINAL_UICodeRunner_onMouseUpOutside or UICodeRunner.onMouseUpOutside;
@@ -89,4 +79,14 @@ function DragAndDrop:isDragging()
     -- Disabling Inventory tetris drag renderer if the 3d cursor is visible
     if DragToPlace:IsVisible() then return false end;
     return ORIGINAL_DragAndDrop_isDragging(self);
+end
+
+ORIGINAL_DragToPlace_PlaceItem = ORIGINAL_DragToPlace_PlaceItem or DragToPlace.PlaceItem;
+---@diagnostic disable-next-line: duplicate-set-field
+function DragToPlace:PlaceItem()
+    local canceled = self.canceled;
+    ORIGINAL_DragToPlace_PlaceItem(self);
+    if not canceled then
+        DragAndDrop.endDrag();
+    end
 end

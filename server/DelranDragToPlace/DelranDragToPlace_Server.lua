@@ -33,8 +33,10 @@ end
 local original_isvalid = ISPlace3DItemCursor.isValid;
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISPlace3DItemCursor:isValid(square)
-    if not DragToPlace.options.faceItemWhilePlacing and DragToPlace.placingItem then return true end
-    return original_isvalid(self, square);
+    if DragToPlace.options.faceItemWhilePlacing and DragToPlace.placingItem then
+        original_isvalid(self, square);
+    end
+    return true;
 end
 
 OG_CURSOR_RENDER = OG_CURSOR_RENDER or ISPlace3DItemCursor.render;
@@ -51,6 +53,6 @@ end
 OG_CHECK_ROTATE_KEY = OG_CHECK_ROTATE_KEY or ISPlace3DItemCursor.checkRotateKey;
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISPlace3DItemCursor:checkRotateKey()
-    if not DragToPlace.options.rotateModeEnabled and DragToPlace.placingItem then return end
+    if DragToPlace.options.rotateModeEnabled and DragToPlace.placingItem then return end
     OG_CHECK_ROTATE_KEY(self);
 end

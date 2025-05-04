@@ -384,7 +384,7 @@ function DelranDragToPlace.WaitBeforeShowCursorTimer:UpdateTimer(gameTick)
 
     -- If the mouse over any UI, reset the timer, we don't show the cursor
     --  unless the mouse is in the gameworld
-    if DelranUtils.IsMouseOverUI() then
+    if not DelranDragToPlace.placingItem or DelranUtils.IsMouseOverUI() then
         self:Reset();
     else
         -- If the mouse is not
@@ -417,6 +417,9 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
+    if true then
+        return
+    end
     if not DelranDragToPlace.placingItem and self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
@@ -425,11 +428,8 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
-    if DelranDragToPlace.placingItem then
-        if DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
-            DelranDragToPlace:HideCursor();
-        end
-    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+    if DelranDragToPlace.placingItem then return end;
+    if self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
