@@ -45,20 +45,17 @@ end
 
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMove(dx, dy)
-    if not self == ISMouseDrag.dragOwner then
-        return
-    end
-    if DragToPlace.placingItem then
-        if DragToPlace.startedFrom == self and not DragToPlace.hidden then
-            DragToPlace:HideCursor();
-        end
-    elseif DragAndDrop:isDragging() then
+    if not DragToPlace.placingItem and DragAndDrop:isDragging() then
         local draggedItems = getItemFromDragAndDrop();
         if draggedItems then
-            dprint("Starting from onMOuseMove")
             DragToPlace:Start(getPlayer(), draggedItems, self);
         end
     end
+end
+
+--- Disabling onMouseMoveOutside otherwise an error occurs
+---@diagnostic disable-next-line: duplicate-set-field
+function ISInventoryPane:onMouseMoveOutside(dx, dy)
 end
 
 ORIGINAL_UICodeRunner_onMouseUpOutside = ORIGINAL_UICodeRunner_onMouseUpOutside or UICodeRunner.onMouseUpOutside;
