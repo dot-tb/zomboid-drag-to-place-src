@@ -1,4 +1,4 @@
 [submodule "DelranLib"]
 	path = media/lua/shared/DelranDragToPlace/DelranLib
-	url = git@github.com:dot-tb/zomboid-delran-lib
+	url = https://github.com/dot-tb/zomboid-delran-lib.git
 	branch = b41
