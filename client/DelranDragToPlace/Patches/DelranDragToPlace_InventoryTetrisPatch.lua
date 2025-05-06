@@ -90,3 +90,15 @@ function DragToPlace:PlaceItem()
         DragAndDrop.endDrag();
     end
 end
+
+ORIGINAL_EquipmentUIWindow_onMouseMove = ORIGINAL_EquipmentUIWindow_onMouseMove or EquipmentUIWindow.onMouseMove;
+---@diagnostic disable-next-line: duplicate-set-field
+function EquipmentUIWindow:onMouseMove(dx, dy)
+    ORIGINAL_EquipmentUIWindow_onMouseMove(self, dx, dy);
+    if not DragToPlace.placingItem and DragAndDrop:isDragging() then
+        local draggedItems = getItemFromDragAndDrop();
+        if draggedItems then
+            DragToPlace:Start(getPlayer(), draggedItems, self);
+        end
+    end
+end

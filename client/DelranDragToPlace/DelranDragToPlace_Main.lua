@@ -162,11 +162,9 @@ function DelranDragToPlace:CollapseUI()
 end
 
 function DelranDragToPlace:RevealUI()
-    dprint("reveling ui called")
     if not self.uiCollapsed then
         return;
     end
-    dprint("reveling ui")
     self.uiCollapsed = false;
     self.playerInventory.isCollapsed = false;
     self.playerInventory:clearMaxDrawHeight();
