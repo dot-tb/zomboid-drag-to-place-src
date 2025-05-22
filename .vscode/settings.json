@@ -1,0 +1,11 @@
+{
+    "Lua.workspace.library": [
+        "${addons}/umbrella/module/library",
+        "D:\\SteamLibrary\\steamapps\\workshop\\content\\108600\\2982070344\\mods\\InventoryTetris\\media\\lua",
+        "D:\\SteamLibrary\\steamapps\\workshop\\content\\108600\\2950902979\\mods\\EquipmentUI\\media\\lua",
+        "D:\\SteamLibrary\\steamapps\\workshop\\content\\108600\\2169435993\\mods\\ModOptions\\media\\lua"
+    ],
+    "Lua.diagnostics.groupFileStatus": {
+        "strong": "Any"
+    }
+}
