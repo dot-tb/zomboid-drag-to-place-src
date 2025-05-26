@@ -413,10 +413,18 @@ end
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
     if DelranDragToPlace.placingItem then
-        if DelranDragToPlace.startedFrom == self and not DelranDragToPlace.hidden then
-            DelranDragToPlace:HideCursor();
-        end
-    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+        return
+    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 and self.dragStarted and ISMouseDrag.dragging then
+        DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
+    end
+end
+
+---@diagnostic disable-next-line: duplicate-set-field
+function ISInventoryPane:onMouseMoveOutside(dx, dy)
+    ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
+    if DelranDragToPlace.placingItem then
+        return
+    elseif self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 and self.dragStarted and ISMouseDrag.dragging then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
