@@ -415,10 +415,7 @@ end
 ---@diagnostic disable-next-line: duplicate-set-field
 function ISInventoryPane:onMouseMoveOutside(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMoveOutside(self, dx, dy);
-    if true then
-        return
-    end
-    if not DelranDragToPlace.placingItem and self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+    if not DelranDragToPlace.placingItem and self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 and self.dragStarted and ISMouseDrag.dragging then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
@@ -427,7 +424,7 @@ end
 function ISInventoryPane:onMouseMove(dx, dy)
     ORIGINAL_ISInventoryPane_onMouseMove(self, dx, dy);
     if DelranDragToPlace.placingItem then return end;
-    if self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 then
+    if self.dragging and self.draggedItems and self.draggedItems.items and #self.draggedItems.items == 1 and self.dragStarted and ISMouseDrag.dragging then
         DelranDragToPlace:Start(getPlayer(), self.draggedItems.items, self);
     end
 end
